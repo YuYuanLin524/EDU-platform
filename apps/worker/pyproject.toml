@@ -1,0 +1,16 @@
+[project]
+name = "socratic-worker"
+version = "0.1.0"
+description = "Socratic Coding Platform Worker"
+requires-python = ">=3.11"
+dependencies = [
+    "redis>=5.0.0",
+    "rq>=1.15.0",
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "pydantic-settings>=2.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

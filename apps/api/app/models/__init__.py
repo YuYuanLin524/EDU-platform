@@ -1,0 +1,33 @@
+from app.models.models import (
+    User,
+    UserRole,
+    UserStatus,
+    Class,
+    ClassTeacher,
+    ClassStudent,
+    PromptScope,
+    ScopeType,
+    Conversation,
+    Message,
+    MessageRole,
+    ExportJob,
+    ExportStatus,
+    AuditLog,
+)
+
+__all__ = [
+    "User",
+    "UserRole",
+    "UserStatus",
+    "Class",
+    "ClassTeacher",
+    "ClassStudent",
+    "PromptScope",
+    "ScopeType",
+    "Conversation",
+    "Message",
+    "MessageRole",
+    "ExportJob",
+    "ExportStatus",
+    "AuditLog",
+]

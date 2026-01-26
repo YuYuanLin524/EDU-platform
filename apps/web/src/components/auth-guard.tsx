@@ -1,0 +1,68 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/auth";
+import { UserRole } from "@/lib/api";
+
+interface AuthGuardProps {
+  children: React.ReactNode;
+  allowedRoles?: UserRole[];
+}
+
+export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
+  const router = useRouter();
+  const { isAuthenticated, isLoading, user, checkAuth, mustChangePassword } =
+    useAuthStore();
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+
+    if (mustChangePassword) {
+      router.push("/login");
+      return;
+    }
+
+    if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+      // Redirect to appropriate page based on role
+      switch (user.role) {
+        case "student":
+          router.push("/student/chat");
+          break;
+        case "teacher":
+          router.push("/teacher/classes");
+          break;
+        case "admin":
+          router.push("/admin/users");
+          break;
+      }
+    }
+  }, [isAuthenticated, isLoading, user, mustChangePassword, allowedRoles, router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || mustChangePassword) {
+    return null;
+  }
+
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+    return null;
+  }
+
+  return <>{children}</>;
+}
