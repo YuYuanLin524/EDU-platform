@@ -97,6 +97,8 @@ export default function AdminUsersPage() {
 
   const [managingTeacherId, setManagingTeacherId] = useState<number | null>(null);
   const [teacherClassIds, setTeacherClassIds] = useState<number[]>([]);
+  const [managingStudentId, setManagingStudentId] = useState<number | null>(null);
+  const [studentClassId, setStudentClassId] = useState<number | null>(null);
 
   // Fetch classes for dropdown
   const { data: classesData } = useQuery({
@@ -184,6 +186,20 @@ export default function AdminUsersPage() {
     },
     onError: (error) => {
       alert("更新教师班级失败: " + getErrorMessage(error));
+    },
+  });
+
+  const setStudentClassMutation = useMutation({
+    mutationFn: (params: { studentId: number; classId: number }) =>
+      api.setStudentClass(params.studentId, params.classId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      setManagingStudentId(null);
+      setStudentClassId(null);
+    },
+    onError: (error) => {
+      alert("调整班级失败: " + getErrorMessage(error));
     },
   });
 
@@ -402,6 +418,25 @@ export default function AdminUsersPage() {
       .map((c) => c.id);
     setTeacherClassIds(selectedIds);
     setManagingTeacherId(user.id);
+    setManagingStudentId(null);
+    setStudentClassId(null);
+    setEditingUserId(null);
+    setResettingUserId(null);
+    setResetResult(null);
+  };
+
+  const openStudentClass = (user: AdminUserListItem) => {
+    if (user.role !== "student") return;
+    if (classes.length === 0) {
+      alert("当前暂无班级，请先创建班级后再调整学生班级。");
+      return;
+    }
+    const currentClassName = user.class_names?.[0];
+    const currentClass = classes.find((c) => c.name === currentClassName);
+    setStudentClassId(currentClass ? currentClass.id : null);
+    setManagingStudentId(user.id);
+    setManagingTeacherId(null);
+    setTeacherClassIds([]);
     setEditingUserId(null);
     setResettingUserId(null);
     setResetResult(null);
@@ -678,6 +713,86 @@ export default function AdminUsersPage() {
                 </div>
               )}
 
+              {managingStudentId !== null && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                  <Card className="w-full max-w-md mx-4">
+                    <CardHeader>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <CardTitle className="flex items-center gap-2">
+                          <Users size={18} />
+                          调整学生班级
+                        </CardTitle>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setManagingStudentId(null);
+                            setStudentClassId(null);
+                          }}
+                        >
+                          <X size={16} className="mr-1" />
+                          关闭
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {classes.length === 0 ? (
+                        <p className="text-sm text-gray-600">
+                          当前暂无班级，请先创建班级后再调整学生班级。
+                        </p>
+                      ) : (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            选择班级
+                          </label>
+                          <select
+                            className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            value={studentClassId ?? ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setStudentClassId(value ? parseInt(value, 10) : null);
+                            }}
+                          >
+                            <option value="">请选择</option>
+                            {classes.map((cls) => (
+                              <option key={cls.id} value={cls.id}>
+                                {cls.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-3 mt-6">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setManagingStudentId(null);
+                            setStudentClassId(null);
+                          }}
+                          disabled={setStudentClassMutation.isPending}
+                        >
+                          取消
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            if (managingStudentId === null || studentClassId === null) return;
+                            setStudentClassMutation.mutate({
+                              studentId: managingStudentId,
+                              classId: studentClassId,
+                            });
+                          }}
+                          loading={setStudentClassMutation.isPending}
+                          disabled={classes.length === 0 || studentClassId === null}
+                        >
+                          保存
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -815,6 +930,17 @@ export default function AdminUsersPage() {
                                     <Pencil size={14} className="mr-1" />
                                     修改
                                   </Button>
+                                  {u.role === "student" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => openStudentClass(u)}
+                                      disabled={setStudentClassMutation.isPending}
+                                    >
+                                      <Users size={14} className="mr-1" />
+                                      调整班级
+                                    </Button>
+                                  )}
                                   {u.role === "teacher" && (
                                     <Button
                                       size="sm"

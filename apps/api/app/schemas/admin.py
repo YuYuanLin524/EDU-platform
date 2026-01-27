@@ -76,3 +76,13 @@ class DeleteUserResponse(BaseModel):
     id: int
     username: str
     message: str
+
+
+class StudentClassUpdateRequest(BaseModel):
+    class_id: int
+
+
+class StudentClassUpdateResponse(BaseModel):
+    student_id: int
+    class_id: int
+    class_name: str

@@ -129,6 +129,22 @@ class TestListClasses:
         assert data["total"] == 1
         assert data["items"][0]["name"] == class_with_student.name
 
+    async def test_list_classes_supports_skip_limit_params(
+        self,
+        client: AsyncClient,
+        admin_user: User,
+        admin_token: str,
+    ):
+        response = await client.get(
+            "/classes?skip=0&limit=1",
+            headers=auth_header(admin_token),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "items" in data
+        assert len(data["items"]) <= 1
+
 
 class TestGetClassDetail:
     """Tests for GET /classes/{class_id} endpoint."""

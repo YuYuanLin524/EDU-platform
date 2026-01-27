@@ -26,6 +26,8 @@ from app.schemas.admin import (
     UserListItem,
     TeacherClassesUpdateRequest,
     TeacherClassesUpdateResponse,
+    StudentClassUpdateRequest,
+    StudentClassUpdateResponse,
     UpdateUserRequest,
     UpdateUserResponse,
     DeleteUserResponse,
@@ -381,6 +383,55 @@ async def set_teacher_classes(
     await db.commit()
 
     return TeacherClassesUpdateResponse(teacher_id=teacher_id, class_names=class_names)
+
+
+@router.put("/students/{student_id}/class", response_model=StudentClassUpdateResponse)
+async def set_student_class(
+    student_id: int,
+    request: StudentClassUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    result = await db.execute(select(User).where(User.id == student_id))
+    student = result.scalar_one_or_none()
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+    if student.role != UserRole.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="仅支持设置学生的所属班级"
+        )
+
+    class_result = await db.execute(select(Class).where(Class.id == request.class_id))
+    class_obj = class_result.scalar_one_or_none()
+    if not class_obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="班级不存在")
+
+    await db.execute(delete(ClassStudent).where(ClassStudent.student_id == student_id))
+    db.add(
+        ClassStudent(
+            class_id=class_obj.id,
+            student_id=student_id,
+            created_at=datetime.utcnow(),
+        )
+    )
+
+    audit_log = AuditLog(
+        actor_id=admin.id,
+        action="set_student_class",
+        target_type="student",
+        target_id=student_id,
+        meta={"class_id": class_obj.id},
+        created_at=datetime.utcnow(),
+    )
+    db.add(audit_log)
+
+    await db.commit()
+
+    return StudentClassUpdateResponse(
+        student_id=student_id,
+        class_id=class_obj.id,
+        class_name=class_obj.name,
+    )
 
 
 @router.delete("/users/{user_id}", response_model=DeleteUserResponse)

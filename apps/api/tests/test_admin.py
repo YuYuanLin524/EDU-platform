@@ -295,6 +295,67 @@ class TestSetTeacherClasses:
         assert set([c["name"] for c in class_items]) == {c1.name, c2.name}
 
 
+class TestSetStudentClass:
+    async def test_set_student_class(
+        self,
+        client: AsyncClient,
+        admin_user: User,
+        admin_token: str,
+        student_user: User,
+        fully_setup_class,
+        test_session,
+    ):
+        response_create = await client.post(
+            "/classes",
+            json={"name": "转入班级", "grade": "七年级"},
+            headers=auth_header(admin_token),
+        )
+        assert response_create.status_code == 200
+        new_class = response_create.json()
+
+        response = await client.put(
+            f"/admin/students/{student_user.id}/class",
+            json={"class_id": new_class["id"]},
+            headers=auth_header(admin_token),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["student_id"] == student_user.id
+        assert data["class_id"] == new_class["id"]
+        assert data["class_name"] == new_class["name"]
+
+        list_response = await client.get("/admin/users?role=student", headers=auth_header(admin_token))
+        assert list_response.status_code == 200
+        items = list_response.json()["items"]
+        target = next((u for u in items if u["id"] == student_user.id), None)
+        assert target is not None
+        assert target["class_names"] == [new_class["name"]]
+
+        from app.models import ClassStudent
+
+        result = await test_session.execute(
+            select(ClassStudent).where(ClassStudent.student_id == student_user.id)
+        )
+        links = result.scalars().all()
+        assert len(links) == 1
+        assert links[0].class_id == new_class["id"]
+
+    async def test_non_admin_cannot_set_student_class(
+        self,
+        client: AsyncClient,
+        teacher_user: User,
+        teacher_token: str,
+        student_user: User,
+        test_class,
+    ):
+        response = await client.put(
+            f"/admin/students/{student_user.id}/class",
+            json={"class_id": test_class.id},
+            headers=auth_header(teacher_token),
+        )
+        assert response.status_code == 403
+
+
 class TestResetPassword:
     """Tests for POST /admin/users/{user_id}/reset-password endpoint."""
 

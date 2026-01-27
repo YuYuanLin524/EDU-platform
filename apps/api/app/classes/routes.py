@@ -59,6 +59,8 @@ async def create_class(
 async def list_classes(
     page: int = 1,
     page_size: int = 20,
+    skip: int | None = None,
+    limit: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -101,7 +103,12 @@ async def list_classes(
     total = total_result.scalar() or 0
 
     query = query.order_by(Class.created_at.desc())
-    query = query.offset((page - 1) * page_size).limit(page_size)
+    if skip is not None or limit is not None:
+        offset_value = int(skip or 0)
+        limit_value = int(limit or page_size)
+        query = query.offset(offset_value).limit(limit_value)
+    else:
+        query = query.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
     classes = result.scalars().all()
 

@@ -44,6 +44,7 @@ export default function AdminClassesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["class-detail"] });
       queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
     },
   });
 
@@ -53,6 +54,7 @@ export default function AdminClassesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["class-detail"] });
       queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
     },
   });
 

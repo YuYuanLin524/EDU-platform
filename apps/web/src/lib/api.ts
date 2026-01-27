@@ -490,6 +490,16 @@ class ApiClient {
     });
     return response.data;
   }
+
+  async setStudentClass(
+    studentId: number,
+    classId: number
+  ): Promise<{ student_id: number; class_id: number; class_name: string }> {
+    const response = await this.client.put(`/admin/students/${studentId}/class`, {
+      class_id: classId,
+    });
+    return response.data;
+  }
 }
 
 export const api = new ApiClient();
