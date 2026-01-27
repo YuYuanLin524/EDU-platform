@@ -91,6 +91,7 @@ class TestBulkImportUsers:
         admin_user: User,
         admin_token: str,
         student_user: User,  # Already exists with username "student1"
+        test_class,
     ):
         """Test bulk import with duplicate username reports error."""
         response = await client.post(
@@ -101,6 +102,7 @@ class TestBulkImportUsers:
                         "username": "student1",  # Already exists
                         "display_name": "Duplicate Student",
                         "role": "student",
+                        "class_name": test_class.name,
                     },
                 ]
             },
@@ -119,7 +121,7 @@ class TestBulkImportUsers:
         admin_user: User,
         admin_token: str,
     ):
-        """Test bulk import with non-existent class reports error but creates user."""
+        """Test bulk import with non-existent class rejects student creation."""
         response = await client.post(
             "/admin/users/bulk-import",
             json={
@@ -137,10 +139,37 @@ class TestBulkImportUsers:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["created_count"] == 1
+        assert data["created_count"] == 0
         assert len(data["errors"]) == 1
         assert "不存在" in data["errors"][0]
-        assert data["users"][0]["class_name"] is None  # Not bound
+        assert len(data["users"]) == 0
+
+    async def test_bulk_import_student_missing_class_rejected(
+        self,
+        client: AsyncClient,
+        admin_user: User,
+        admin_token: str,
+    ):
+        """Test student without class_name is rejected."""
+        response = await client.post(
+            "/admin/users/bulk-import",
+            json={
+                "users": [
+                    {
+                        "username": "import_student_no_class",
+                        "display_name": "No Class Student",
+                        "role": "student",
+                    },
+                ]
+            },
+            headers=auth_header(admin_token),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["created_count"] == 0
+        assert len(data["errors"]) == 1
+        assert "必须选择班级" in data["errors"][0]
 
     async def test_non_admin_cannot_bulk_import(
         self,
@@ -176,6 +205,7 @@ class TestListUsers:
         admin_token: str,
         student_user: User,
         teacher_user: User,
+        fully_setup_class,
     ):
         """Test listing all users."""
         response = await client.get(
@@ -187,6 +217,12 @@ class TestListUsers:
         data = response.json()
         assert data["total"] >= 3  # admin, student, teacher
         assert len(data["items"]) >= 3
+
+        by_username = {u["username"]: u for u in data["items"]}
+        assert "class_names" in by_username["admin"]
+        assert by_username["admin"]["class_names"] == []
+        assert fully_setup_class.name in by_username["student1"]["class_names"]
+        assert fully_setup_class.name in by_username["teacher1"]["class_names"]
 
     async def test_list_users_filter_by_role(
         self,
@@ -221,6 +257,42 @@ class TestListUsers:
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) <= 2
+
+
+class TestSetTeacherClasses:
+    async def test_set_teacher_classes(
+        self,
+        client: AsyncClient,
+        admin_user: User,
+        admin_token: str,
+        teacher_user: User,
+        teacher_token: str,
+        test_session,
+    ):
+        from app.models import Class
+
+        c1 = Class(name="24网络安全", grade=None)
+        c2 = Class(name="24软件测试", grade=None)
+        test_session.add(c1)
+        test_session.add(c2)
+        await test_session.commit()
+        await test_session.refresh(c1)
+        await test_session.refresh(c2)
+
+        response = await client.put(
+            f"/admin/teachers/{teacher_user.id}/classes",
+            json={"class_ids": [c1.id, c2.id]},
+            headers=auth_header(admin_token),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["teacher_id"] == teacher_user.id
+        assert set(data["class_names"]) == {c1.name, c2.name}
+
+        teacher_classes = await client.get("/classes", headers=auth_header(teacher_token))
+        assert teacher_classes.status_code == 200
+        class_items = teacher_classes.json()["items"]
+        assert set([c["name"] for c in class_items]) == {c1.name, c2.name}
 
 
 class TestResetPassword:

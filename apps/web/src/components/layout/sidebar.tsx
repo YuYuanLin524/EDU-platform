@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import {
   MessageSquare,
@@ -26,7 +27,7 @@ const studentNav: NavItem[] = [
 ];
 
 const teacherNav: NavItem[] = [
-  { label: "班级", href: "/teacher/classes", icon: <Users size={20} /> },
+  { label: "我的班级", href: "/teacher/classes", icon: <Users size={20} /> },
   { label: "提示词", href: "/teacher/prompts", icon: <FileText size={20} /> },
   { label: "导出", href: "/teacher/exports", icon: <Download size={20} /> },
 ];
@@ -40,6 +41,7 @@ const adminNav: NavItem[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, logout } = useAuthStore();
 
   const getNavItems = (): NavItem[] => {
@@ -49,13 +51,14 @@ export function Sidebar() {
       case "teacher":
         return teacherNav;
       case "admin":
-        return [...adminNav, ...teacherNav];
+        return adminNav;
       default:
         return [];
     }
   };
 
   const handleLogout = () => {
+    queryClient.clear();
     logout();
     router.push("/login");
   };

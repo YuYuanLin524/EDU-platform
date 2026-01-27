@@ -225,6 +225,18 @@ async def add_students_to_class(
     added = 0
     errors = []
 
+    other_class_result = await db.execute(
+        select(ClassStudent.student_id, Class.name)
+        .join(Class, Class.id == ClassStudent.class_id)
+        .where(
+            ClassStudent.student_id.in_(request.student_ids),
+            ClassStudent.class_id != class_id,
+        )
+    )
+    other_class_map: dict[int, list[str]] = {}
+    for student_id, class_name in other_class_result.all():
+        other_class_map.setdefault(student_id, []).append(class_name)
+
     for student_id in request.student_ids:
         # 检查用户是否存在且是学生
         user_result = await db.execute(select(User).where(User.id == student_id))
@@ -234,6 +246,10 @@ async def add_students_to_class(
             continue
         if user.role != UserRole.STUDENT:
             errors.append(f"用户 {user.username} 不是学生角色")
+            continue
+        if student_id in other_class_map:
+            class_name = other_class_map[student_id][0]
+            errors.append(f"学生 {user.username} 已在班级 {class_name} 中，请先移除再添加")
             continue
 
         # 检查是否已在班级中

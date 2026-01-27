@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ConversationInfo, MessageInfo, ClassInfo } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,7 @@ import { Plus, Send, MessageSquare } from "lucide-react";
 
 export default function StudentChatPage() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
   const [selectedConversation, setSelectedConversation] =
     useState<ConversationInfo | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
@@ -19,7 +21,7 @@ export default function StudentChatPage() {
 
   // Fetch classes for the dropdown
   const { data: classesData } = useQuery({
-    queryKey: ["classes"],
+    queryKey: ["classes", user?.role, user?.id],
     queryFn: () => api.getClasses(),
   });
 

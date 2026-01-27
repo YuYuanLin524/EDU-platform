@@ -6,6 +6,7 @@
 **/__pycache__/
 **/*.pyc
 **/.ruff_cache/
+**/.venv/
 
 **/node_modules/
 **/.next/
@@ -19,3 +20,5 @@ apps/web/nextjs.log
 .trae/
 
 exports/
+
+.run/

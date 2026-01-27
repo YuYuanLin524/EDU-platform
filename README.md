@@ -16,6 +16,26 @@
 
 ## 快速开始
 
+### 一键启动（推荐）
+
+```bash
+chmod +x ./dev.sh
+./dev.sh up
+```
+
+脚本会自动选择可用端口并在控制台打印访问地址。
+
+默认超管账号（本地开发）：
+
+- 学号/工号：A00001
+- 密码：admin123
+
+停止服务：
+
+```bash
+./dev.sh down
+```
+
 ### 1. 启动数据库和 Redis
 
 ```bash
@@ -43,8 +63,8 @@ uvicorn app.main:app --reload
 
 ```bash
 cd apps/web
-pnpm install
-pnpm dev
+npm ci
+npm run dev
 ```
 
 ## 项目结构

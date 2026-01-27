@@ -328,6 +328,31 @@ class TestAddStudentsToClass:
         assert data["added"] == 0
         assert "已在该班级中" in data["errors"][0]
 
+    async def test_add_student_already_in_other_class_fails(
+        self,
+        client: AsyncClient,
+        admin_user: User,
+        admin_token: str,
+        class_with_student: Class,
+        student_user: User,
+        test_session,
+    ):
+        other_class = Class(name="九年级一班", grade="九年级")
+        test_session.add(other_class)
+        await test_session.commit()
+        await test_session.refresh(other_class)
+
+        response = await client.post(
+            f"/classes/{other_class.id}/students/bulk-add",
+            json={"student_ids": [student_user.id]},
+            headers=auth_header(admin_token),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["added"] == 0
+        assert any("已在班级" in e and class_with_student.name in e for e in data["errors"])
+
 
 class TestAddTeachersToClass:
     """Tests for POST /classes/{class_id}/teachers/add endpoint."""

@@ -18,6 +18,8 @@ import {
   KeyRound,
   Pencil,
   Trash2,
+  Users,
+  X,
 } from "lucide-react";
 
 interface UserToImport {
@@ -51,6 +53,7 @@ interface AdminUserListItem {
   must_change_password: boolean;
   created_at: string;
   last_login_at: string | null;
+  class_names: string[];
 }
 
 interface ResetPasswordResult {
@@ -92,9 +95,12 @@ export default function AdminUsersPage() {
   const [resetPasswordInput, setResetPasswordInput] = useState("");
   const [resetResult, setResetResult] = useState<ResetPasswordResult | null>(null);
 
+  const [managingTeacherId, setManagingTeacherId] = useState<number | null>(null);
+  const [teacherClassIds, setTeacherClassIds] = useState<number[]>([]);
+
   // Fetch classes for dropdown
   const { data: classesData } = useQuery({
-    queryKey: ["classes"],
+    queryKey: ["classes", "admin"],
     queryFn: () => api.getClasses(0, 100),
   });
 
@@ -168,6 +174,19 @@ export default function AdminUsersPage() {
     },
   });
 
+  const setTeacherClassesMutation = useMutation({
+    mutationFn: (params: { teacherId: number; classIds: number[] }) =>
+      api.setTeacherClasses(params.teacherId, params.classIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
+      setManagingTeacherId(null);
+      setTeacherClassIds([]);
+    },
+    onError: (error) => {
+      alert("更新教师班级失败: " + getErrorMessage(error));
+    },
+  });
+
   const handleAddFormUser = () => {
     setFormUsers([
       ...formUsers,
@@ -199,23 +218,24 @@ export default function AdminUsersPage() {
       alert("请至少添加一个有效用户");
       return;
     }
-    
-    // Check if any student is missing class assignment
+
+    if (classes.length === 0 && validUsers.some((u) => u.role === "student")) {
+      alert("尚未创建班级，无法创建学生账户。请先创建班级。");
+      return;
+    }
+
     const studentsWithoutClass = validUsers.filter(
-      (u) => u.role === "student" && !u.class_name
+      (u) => u.role === "student" && !String(u.class_name || "").trim()
     );
-    
-    if (studentsWithoutClass.length > 0 && classes.length > 0) {
-      const proceed = confirm(
-        `有 ${studentsWithoutClass.length} 个学生未分配班级，是否继续创建？\n（未分配班级的学生之后需要手动添加到班级）`
-      );
-      if (!proceed) return;
+    if (studentsWithoutClass.length > 0) {
+      alert("学生账户必须选择班级后才能创建");
+      return;
     }
 
     // Remove empty class_name
     const usersToImport = validUsers.map((u) => ({
       ...u,
-      class_name: u.class_name || undefined,
+      class_name: String(u.class_name || "").trim() || undefined,
     }));
 
     importMutation.mutate(usersToImport);
@@ -228,7 +248,43 @@ export default function AdminUsersPage() {
         alert("JSON格式错误：需要一个数组");
         return;
       }
-      importMutation.mutate(users);
+      const normalizedUsers: UserToImport[] = users
+        .filter((u: unknown) => typeof u === "object" && u !== null)
+        .map((u: any) => ({
+          username: String(u.username || "").trim(),
+          display_name: typeof u.display_name === "string" ? u.display_name : undefined,
+          role: u.role as UserRole,
+          class_name: typeof u.class_name === "string" ? u.class_name.trim() : undefined,
+        }))
+        .filter((u) => u.username);
+
+      if (normalizedUsers.length === 0) {
+        alert("请至少提供一个有效用户");
+        return;
+      }
+
+      const invalidRole = normalizedUsers.find(
+        (u) => u.role !== "student" && u.role !== "teacher"
+      );
+      if (invalidRole) {
+        alert("JSON 中存在无效角色（仅支持 student/teacher）");
+        return;
+      }
+
+      if (classes.length === 0 && normalizedUsers.some((u) => u.role === "student")) {
+        alert("尚未创建班级，无法导入学生账户。请先创建班级。");
+        return;
+      }
+
+      const missingClass = normalizedUsers.filter(
+        (u) => u.role === "student" && !u.class_name
+      );
+      if (missingClass.length > 0) {
+        alert("JSON 导入：学生账户必须提供 class_name");
+        return;
+      }
+
+      importMutation.mutate(normalizedUsers);
     } catch {
       alert("JSON解析失败，请检查格式");
     }
@@ -294,6 +350,12 @@ export default function AdminUsersPage() {
   // Check if we need to show a warning about no classes
   const hasStudents = formUsers.some((u) => u.role === "student");
   const showNoClassWarning = hasStudents && classes.length === 0;
+  const formValidUsers = formUsers.filter((u) => u.username.trim());
+  const formHasStudentWithoutClass = formValidUsers.some(
+    (u) => u.role === "student" && !String(u.class_name || "").trim()
+  );
+  const formCannotCreateStudentsNoClass =
+    classes.length === 0 && formValidUsers.some((u) => u.role === "student");
 
   const users = usersQuery.data?.items ?? [];
   const totalUsers = usersQuery.data?.total ?? 0;
@@ -331,6 +393,24 @@ export default function AdminUsersPage() {
     setResetPasswordInput("");
     setResetResult(null);
     setEditingUserId(null);
+  };
+
+  const openTeacherClasses = (user: AdminUserListItem) => {
+    if (user.role !== "teacher") return;
+    const selectedIds = classes
+      .filter((c) => (user.class_names || []).includes(c.name))
+      .map((c) => c.id);
+    setTeacherClassIds(selectedIds);
+    setManagingTeacherId(user.id);
+    setEditingUserId(null);
+    setResettingUserId(null);
+    setResetResult(null);
+  };
+
+  const toggleTeacherClass = (classId: number) => {
+    setTeacherClassIds((prev) =>
+      prev.includes(classId) ? prev.filter((id) => id !== classId) : [...prev, classId]
+    );
   };
 
   const closeResetPassword = () => {
@@ -520,6 +600,84 @@ export default function AdminUsersPage() {
                 </Card>
               )}
 
+              {managingTeacherId !== null && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                  <Card className="w-full max-w-2xl mx-4">
+                    <CardHeader>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <CardTitle className="flex items-center gap-2">
+                          <Users size={18} />
+                          设置教师授课班级
+                        </CardTitle>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setManagingTeacherId(null);
+                            setTeacherClassIds([]);
+                          }}
+                        >
+                          <X size={16} className="mr-1" />
+                          关闭
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {classes.length === 0 ? (
+                        <p className="text-sm text-gray-600">
+                          当前暂无班级，请先创建班级后再为教师分配。
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {classes.map((cls) => {
+                            const checked = teacherClassIds.includes(cls.id);
+                            return (
+                              <label
+                                key={cls.id}
+                                className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer select-none"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleTeacherClass(cls.id)}
+                                />
+                                <span className="text-sm text-gray-900">{cls.name}</span>
+                                <span className="text-xs text-gray-500">{cls.grade || "-"}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-3 mt-6">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setManagingTeacherId(null);
+                            setTeacherClassIds([]);
+                          }}
+                          disabled={setTeacherClassesMutation.isPending}
+                        >
+                          取消
+                        </Button>
+                        <Button
+                          onClick={() =>
+                            setTeacherClassesMutation.mutate({
+                              teacherId: managingTeacherId,
+                              classIds: teacherClassIds,
+                            })
+                          }
+                          loading={setTeacherClassesMutation.isPending}
+                          disabled={classes.length === 0}
+                        >
+                          保存
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -527,6 +685,7 @@ export default function AdminUsersPage() {
                       <th className="text-left py-2">学号/工号</th>
                       <th className="text-left py-2">姓名</th>
                       <th className="text-left py-2">角色</th>
+                      <th className="text-left py-2">班级</th>
                       <th className="text-left py-2">状态</th>
                       <th className="text-left py-2">需改密</th>
                       <th className="text-left py-2">创建时间</th>
@@ -537,7 +696,7 @@ export default function AdminUsersPage() {
                   <tbody>
                     {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-8 text-center text-gray-500">
+                        <td colSpan={9} className="py-8 text-center text-gray-500">
                           当前无用户
                         </td>
                       </tr>
@@ -550,6 +709,12 @@ export default function AdminUsersPage() {
                             : u.role === "teacher"
                             ? "教师"
                             : "学生";
+                        const classLabel =
+                          u.role === "student"
+                            ? u.class_names?.[0] || "-"
+                            : u.role === "teacher"
+                            ? u.class_names?.join("、") || "-"
+                            : "-";
                         const statusLabel = u.status === "disabled" ? "禁用" : "正常";
                         return (
                           <tr key={u.id} className="border-b align-top">
@@ -578,6 +743,7 @@ export default function AdminUsersPage() {
                               )}
                             </td>
                             <td className="py-2">{roleLabel}</td>
+                            <td className="py-2">{classLabel}</td>
                             <td className="py-2">
                               {isEditing ? (
                                 <select
@@ -649,6 +815,17 @@ export default function AdminUsersPage() {
                                     <Pencil size={14} className="mr-1" />
                                     修改
                                   </Button>
+                                  {u.role === "teacher" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => openTeacherClasses(u)}
+                                      disabled={setTeacherClassesMutation.isPending}
+                                    >
+                                      <Users size={14} className="mr-1" />
+                                      管理班级
+                                    </Button>
+                                  )}
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -911,10 +1088,23 @@ export default function AdminUsersPage() {
                 <Button
                   onClick={handleFormSubmit}
                   loading={importMutation.isPending}
+                  disabled={
+                    importMutation.isPending ||
+                    formValidUsers.length === 0 ||
+                    formCannotCreateStudentsNoClass ||
+                    formHasStudentWithoutClass
+                  }
                 >
                   创建用户
                 </Button>
               </div>
+              {(formCannotCreateStudentsNoClass || formHasStudentWithoutClass) && (
+                <p className="text-sm text-red-600">
+                  {formCannotCreateStudentsNoClass
+                    ? "尚未创建班级，无法创建学生账户"
+                    : "学生账户必须选择班级后才能创建"}
+                </p>
+              )}
               <p className="text-sm text-gray-500">
                 密码将自动生成，创建后请下载结果并将密码分发给用户
               </p>
@@ -968,7 +1158,7 @@ export default function AdminUsersPage() {
                   <li><code className="bg-gray-100 px-1 rounded">username</code> - 学号/工号（必填）</li>
                   <li><code className="bg-gray-100 px-1 rounded">display_name</code> - 姓名（选填）</li>
                   <li><code className="bg-gray-100 px-1 rounded">role</code> - 角色：student/teacher（必填）</li>
-                  <li><code className="bg-gray-100 px-1 rounded">class_name</code> - 班级名称（学生选填，需先创建班级）</li>
+                  <li><code className="bg-gray-100 px-1 rounded">class_name</code> - 班级名称（学生必填，需先创建班级）</li>
                 </ul>
               </div>
             </div>

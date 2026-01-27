@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api, ClassInfo, StudentInClass, ConversationInfo, MessageInfo } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -86,8 +87,9 @@ function ClassList({
 }: {
   onSelectClass: (classId: number, className: string) => void;
 }) {
+  const user = useAuthStore((s) => s.user);
   const { data, isLoading } = useQuery({
-    queryKey: ["classes"],
+    queryKey: ["classes", user?.role, user?.id],
     queryFn: () => api.getClasses(),
   });
 
@@ -103,7 +105,7 @@ function ClassList({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">班级管理</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">我的班级</h1>
       {classes.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-gray-500">

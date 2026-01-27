@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, PromptInfo, ClassInfo, ScopeType } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -11,13 +12,14 @@ import { FileText, Plus, Check, History } from "lucide-react";
 
 export default function TeacherPromptsPage() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newPromptContent, setNewPromptContent] = useState("");
   const [newPromptScope, setNewPromptScope] = useState<ScopeType>("global");
 
   const { data: classesData } = useQuery({
-    queryKey: ["classes"],
+    queryKey: ["classes", user?.role, user?.id],
     queryFn: () => api.getClasses(),
   });
 

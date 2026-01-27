@@ -444,6 +444,7 @@ class ApiClient {
       must_change_password: boolean;
       created_at: string;
       last_login_at: string | null;
+      class_names: string[];
     }>;
   }> {
     const response = await this.client.get("/admin/users", {
@@ -477,6 +478,16 @@ class ApiClient {
     message: string;
   }> {
     const response = await this.client.delete(`/admin/users/${userId}`);
+    return response.data;
+  }
+
+  async setTeacherClasses(
+    teacherId: number,
+    classIds: number[]
+  ): Promise<{ teacher_id: number; class_names: string[] }> {
+    const response = await this.client.put(`/admin/teachers/${teacherId}/classes`, {
+      class_ids: classIds,
+    });
     return response.data;
   }
 }

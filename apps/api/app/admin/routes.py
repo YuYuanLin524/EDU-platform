@@ -24,6 +24,8 @@ from app.schemas.admin import (
     UserCreatedInfo,
     UserListResponse,
     UserListItem,
+    TeacherClassesUpdateRequest,
+    TeacherClassesUpdateResponse,
     UpdateUserRequest,
     UpdateUserResponse,
     DeleteUserResponse,
@@ -65,6 +67,15 @@ async def bulk_import_users(
             class_map[c.name] = c
 
     for item in request.users:
+        class_obj = class_map.get(item.class_name) if item.class_name else None
+        if item.role == UserRole.STUDENT:
+            if not item.class_name:
+                errors.append(f"学生 {item.username} 必须选择班级")
+                continue
+            if not class_obj:
+                errors.append(f"班级 {item.class_name} 不存在，已拒绝创建学生 {item.username}")
+                continue
+
         # 检查用户名是否已存在
         existing = await db.execute(select(User).where(User.username == item.username))
         if existing.scalar_one_or_none():
@@ -90,8 +101,11 @@ async def bulk_import_users(
         # 绑定班级
         bound_class_name = None
         if item.class_name:
-            class_obj = class_map.get(item.class_name)
-            if class_obj:
+            if not class_obj:
+                errors.append(
+                    f"班级 {item.class_name} 不存在，用户 {item.username} 已创建但未绑定班级"
+                )
+            else:
                 if item.role == UserRole.STUDENT:
                     db.add(
                         ClassStudent(
@@ -100,6 +114,7 @@ async def bulk_import_users(
                             created_at=datetime.utcnow(),
                         )
                     )
+                    bound_class_name = item.class_name
                 elif item.role == UserRole.TEACHER:
                     db.add(
                         ClassTeacher(
@@ -108,11 +123,7 @@ async def bulk_import_users(
                             created_at=datetime.utcnow(),
                         )
                     )
-                bound_class_name = item.class_name
-            else:
-                errors.append(
-                    f"班级 {item.class_name} 不存在，用户 {item.username} 已创建但未绑定班级"
-                )
+                    bound_class_name = item.class_name
 
         created_users.append(
             UserCreatedInfo(
@@ -172,6 +183,27 @@ async def list_users(
     result = await db.execute(query)
     users = result.scalars().all()
 
+    user_ids = [u.id for u in users]
+    student_class_map: dict[int, list[str]] = {}
+    teacher_class_map: dict[int, list[str]] = {}
+
+    if user_ids:
+        student_result = await db.execute(
+            select(ClassStudent.student_id, Class.name)
+            .join(Class, Class.id == ClassStudent.class_id)
+            .where(ClassStudent.student_id.in_(user_ids))
+        )
+        for student_id, class_name in student_result.all():
+            student_class_map.setdefault(student_id, []).append(class_name)
+
+        teacher_result = await db.execute(
+            select(ClassTeacher.teacher_id, Class.name)
+            .join(Class, Class.id == ClassTeacher.class_id)
+            .where(ClassTeacher.teacher_id.in_(user_ids))
+        )
+        for teacher_id, class_name in teacher_result.all():
+            teacher_class_map.setdefault(teacher_id, []).append(class_name)
+
     items = [
         UserListItem(
             id=u.id,
@@ -182,6 +214,11 @@ async def list_users(
             must_change_password=u.must_change_password,
             created_at=u.created_at.isoformat() if u.created_at else "",
             last_login_at=u.last_login_at.isoformat() if u.last_login_at else None,
+            class_names=student_class_map.get(u.id, [])
+            if u.role == UserRole.STUDENT
+            else teacher_class_map.get(u.id, [])
+            if u.role == UserRole.TEACHER
+            else [],
         )
         for u in users
     ]
@@ -289,6 +326,61 @@ async def update_user(
         status=user.status.value,
         message="更新成功",
     )
+
+
+@router.put("/teachers/{teacher_id}/classes", response_model=TeacherClassesUpdateResponse)
+async def set_teacher_classes(
+    teacher_id: int,
+    request: TeacherClassesUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    result = await db.execute(select(User).where(User.id == teacher_id))
+    teacher = result.scalar_one_or_none()
+    if not teacher:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+    if teacher.role != UserRole.TEACHER:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="仅支持设置教师的授课班级"
+        )
+
+    class_ids = list(dict.fromkeys(request.class_ids))
+    class_names: list[str] = []
+    if class_ids:
+        classes_result = await db.execute(select(Class).where(Class.id.in_(class_ids)))
+        classes = classes_result.scalars().all()
+        found_ids = {c.id for c in classes}
+        missing = [cid for cid in class_ids if cid not in found_ids]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"班级不存在：{missing}",
+            )
+        class_names = [c.name for c in sorted(classes, key=lambda x: x.name)]
+
+    await db.execute(delete(ClassTeacher).where(ClassTeacher.teacher_id == teacher_id))
+    for cid in class_ids:
+        db.add(
+            ClassTeacher(
+                class_id=cid,
+                teacher_id=teacher_id,
+                created_at=datetime.utcnow(),
+            )
+        )
+
+    audit_log = AuditLog(
+        actor_id=admin.id,
+        action="set_teacher_classes",
+        target_type="teacher",
+        target_id=teacher_id,
+        meta={"class_ids": class_ids},
+        created_at=datetime.utcnow(),
+    )
+    db.add(audit_log)
+
+    await db.commit()
+
+    return TeacherClassesUpdateResponse(teacher_id=teacher_id, class_names=class_names)
 
 
 @router.delete("/users/{user_id}", response_model=DeleteUserResponse)

@@ -18,7 +18,7 @@ export default function AdminClassesPage() {
   const [selectedClass, setSelectedClass] = useState<ClassDetail | null>(null);
 
   const { data: classesData, isLoading } = useQuery({
-    queryKey: ["classes"],
+    queryKey: ["classes", "admin"],
     queryFn: () => api.getClasses(),
   });
 
