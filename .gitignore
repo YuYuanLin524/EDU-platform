@@ -22,3 +22,5 @@ apps/web/nextjs.log
 exports/
 
 .run/
+
+.worktrees/
