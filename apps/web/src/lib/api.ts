@@ -147,7 +147,11 @@ class ApiClient {
         if (error.response?.status === 401) {
           this.clearToken();
           if (typeof window !== "undefined") {
-            window.location.href = "/login";
+            const pathname = window.location.pathname;
+            const isPublicRoute = pathname === "/" || pathname === "/login";
+            if (!isPublicRoute) {
+              window.location.href = "/login";
+            }
           }
         }
         return Promise.reject(error);
