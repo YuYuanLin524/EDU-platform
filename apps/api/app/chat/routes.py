@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime
-from typing import List
+from typing import List, AsyncGenerator
 from app.db.base import get_db
 from app.models import (
     User,
@@ -149,9 +150,19 @@ async def list_conversations(
             detail="教师/超管请使用 /teacher/classes/{class_id}/students/{student_id}/conversations 接口",
         )
 
-    query = select(Conversation).where(Conversation.student_id == current_user.id)
+    assistant_exists = (
+        select(Message.id)
+        .where(
+            Message.conversation_id == Conversation.id,
+            Message.role == MessageRole.ASSISTANT,
+        )
+        .exists()
+    )
+    query = select(Conversation).where(
+        Conversation.student_id == current_user.id, assistant_exists
+    )
     count_query = select(func.count(Conversation.id)).where(
-        Conversation.student_id == current_user.id
+        Conversation.student_id == current_user.id, assistant_exists
     )
 
     if class_id:
@@ -302,6 +313,8 @@ async def send_message(
     db.add(user_message)
     await db.flush()
 
+    has_prior_assistant = any(m.role == MessageRole.ASSISTANT for m in history_messages)
+
     # 调用 LLM
     provider = get_llm_provider()
     policy_flags = {}
@@ -329,6 +342,15 @@ async def send_message(
 
     except Exception as e:
         policy_flags["error"] = str(e)
+        if not has_prior_assistant:
+            await db.delete(user_message)
+            await db.delete(conversation)
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="AI 服务暂时不可用，请稍后重试",
+            )
+
         # 保存错误信息作为 AI 回复
         assistant_message = Message(
             conversation_id=conversation_id,
@@ -366,4 +388,108 @@ async def send_message(
             token_out=assistant_message.token_out,
         ),
         policy_flags=policy_flags,
+    )
+
+
+@router.post("/{conversation_id}/messages/stream")
+async def stream_message(
+    conversation_id: int,
+    request: SendMessageRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """流式发送消息并获取 AI 回复（学生专用）"""
+    if current_user.role != UserRole.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="只有学生可以发送消息"
+        )
+
+    conv_result = await db.execute(
+        select(Conversation).where(Conversation.id == conversation_id)
+    )
+    conversation = conv_result.scalar_one_or_none()
+
+    if not conversation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="对话不存在")
+
+    if conversation.student_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="无权操作该对话"
+        )
+
+    system_prompt, _ = await get_effective_prompt_content(db, conversation.class_id)
+
+    msg_result = await db.execute(
+        select(Message)
+        .where(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.asc())
+    )
+    history_messages = msg_result.scalars().all()
+
+    chat_messages = [ChatMessage(role="system", content=system_prompt)]
+    for m in history_messages:
+        chat_messages.append(ChatMessage(role=m.role.value, content=m.content))
+    chat_messages.append(ChatMessage(role="user", content=request.content))
+
+    user_message = Message(
+        conversation_id=conversation_id,
+        role=MessageRole.USER,
+        content=request.content,
+        created_at=datetime.utcnow(),
+    )
+    db.add(user_message)
+    await db.flush()
+
+    has_prior_assistant = any(m.role == MessageRole.ASSISTANT for m in history_messages)
+    provider = get_llm_provider()
+
+    async def event_stream() -> AsyncGenerator[str, None]:
+        policy_flags = {}
+        assistant_content = ""
+
+        try:
+            async for chunk in provider.chat_stream(chat_messages):
+                assistant_content += chunk
+                yield f"data: {chunk}\n\n"
+
+            assistant_message = Message(
+                conversation_id=conversation_id,
+                role=MessageRole.ASSISTANT,
+                content=assistant_content,
+                created_at=datetime.utcnow(),
+                policy_flags=policy_flags,
+            )
+            db.add(assistant_message)
+            conversation.last_message_at = datetime.utcnow()
+            await db.commit()
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            policy_flags["error"] = str(e)
+            if not has_prior_assistant:
+                await db.delete(user_message)
+                await db.delete(conversation)
+                await db.commit()
+                yield "event: error\ndata: AI 服务暂时不可用，请稍后重试\n\n"
+                return
+
+            assistant_message = Message(
+                conversation_id=conversation_id,
+                role=MessageRole.ASSISTANT,
+                content=f"抱歉，AI 服务暂时不可用，请稍后重试。错误信息：{str(e)}",
+                created_at=datetime.utcnow(),
+                policy_flags=policy_flags,
+            )
+            db.add(assistant_message)
+            conversation.last_message_at = datetime.utcnow()
+            await db.commit()
+            yield "event: error\ndata: AI 服务暂时不可用，请稍后重试\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # 禁用 Nginx 缓冲
+        },
     )

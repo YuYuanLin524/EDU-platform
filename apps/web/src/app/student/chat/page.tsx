@@ -2,22 +2,29 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, ConversationInfo, MessageInfo, ClassInfo } from "@/lib/api";
+import { api, MessageInfo } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/utils";
-import { Plus, Send, MessageSquare } from "lucide-react";
+import { useStudentChatUIStore } from "@/stores/student-chat-ui";
+import { Send, MessageSquare } from "lucide-react";
 
 export default function StudentChatPage() {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const [selectedConversation, setSelectedConversation] =
-    useState<ConversationInfo | null>(null);
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const {
+    selectedConversationId,
+    selectedClassId,
+    setSelectedConversationId,
+    setSelectedClassId,
+  } = useStudentChatUIStore();
   const [messageInput, setMessageInput] = useState("");
+  const [localMessages, setLocalMessages] = useState<MessageInfo[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Fetch classes for the dropdown
   const { data: classesData } = useQuery({
@@ -25,238 +32,248 @@ export default function StudentChatPage() {
     queryFn: () => api.getClasses(),
   });
 
-  // Fetch conversations
-  const { data: conversationsData, isLoading: conversationsLoading } = useQuery(
-    {
-      queryKey: ["conversations", selectedClassId],
-      queryFn: () => api.getConversations(selectedClassId ?? undefined),
-    }
-  );
+  const { data: conversationsData } = useQuery({
+    queryKey: ["conversations", selectedClassId],
+    queryFn: () => api.getConversations(selectedClassId ?? undefined),
+  });
+
+  const selectedConversation =
+    conversationsData?.items?.find((c) => c.id === selectedConversationId) || null;
 
   // Fetch messages for selected conversation
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
-    queryKey: ["messages", selectedConversation?.id],
+    queryKey: ["messages", selectedConversationId],
     queryFn: () =>
-      selectedConversation
-        ? api.getConversationMessages(selectedConversation.id)
+      selectedConversationId
+        ? api.getConversationMessages(selectedConversationId)
         : null,
-    enabled: !!selectedConversation,
+    enabled: !!selectedConversationId,
   });
+
+  useEffect(() => {
+    // 同步服务端消息，但不要在流式过程中覆盖本地乐观消息
+    if (!selectedConversationId) {
+      // 创建新对话的第一条消息时，selectedConversationId 还是 null；此时不要把本地乐观消息清掉
+      if (!isStreaming) setLocalMessages([]);
+      return;
+    }
+    if (!messagesData?.messages) return;
+    if (isStreaming) return;
+    setLocalMessages(messagesData.messages);
+  }, [selectedConversationId, messagesData?.messages, isStreaming]);
 
   // Create new conversation
   const createConversationMutation = useMutation({
     mutationFn: (classId: number) => api.createConversation(classId),
-    onSuccess: (newConversation) => {
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      setSelectedConversation(newConversation);
-    },
   });
 
-  // Send message
   const sendMessageMutation = useMutation({
-    mutationFn: ({ conversationId, content }: { conversationId: number; content: string }) =>
-      api.sendMessage(conversationId, content),
-    onSuccess: () => {
+    mutationFn: async ({
+      conversationId,
+      content,
+      assistantMessageId,
+    }: {
+      conversationId: number;
+      content: string;
+      assistantMessageId: number;
+    }) => {
+      await api.sendMessageStream(
+        conversationId,
+        content,
+        (token) => {
+          setLocalMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMessageId
+                ? { ...msg, content: msg.content + token }
+                : msg
+            )
+          );
+        },
+        (errorMessage) => {
+          setLocalMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMessageId
+                ? { ...msg, content: errorMessage }
+                : msg
+            )
+          );
+        }
+      );
+    },
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ["messages", selectedConversation?.id],
+        queryKey: ["messages", variables.conversationId],
       });
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       setMessageInput("");
+      setIsStreaming(false);
+    },
+    onError: () => {
+      setIsStreaming(false);
     },
   });
 
-  // Auto scroll to bottom when new messages arrive
+  // Auto scroll to bottom when new messages arrive or during streaming
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messagesData?.messages]);
+  }, [messagesData?.messages, localMessages]);
 
   // Set default class if only one
   useEffect(() => {
     if (classesData?.items?.length === 1 && !selectedClassId) {
       setSelectedClassId(classesData.items[0].id);
     }
-  }, [classesData, selectedClassId]);
+  }, [classesData, selectedClassId, setSelectedClassId]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageInput.trim() || !selectedConversation) return;
-    sendMessageMutation.mutate({
-      conversationId: selectedConversation.id,
-      content: messageInput.trim(),
-    });
-  };
+    const content = messageInput.trim();
+    if (!content) return;
 
-  const handleNewConversation = () => {
-    if (!selectedClassId && classesData?.items?.[0]) {
-      setSelectedClassId(classesData.items[0].id);
-      createConversationMutation.mutate(classesData.items[0].id);
-    } else if (selectedClassId) {
-      createConversationMutation.mutate(selectedClassId);
+    const classId = selectedClassId ?? classesData?.items?.[0]?.id ?? null;
+    if (!classId) return;
+
+    // 生成稳定的本地消息 ID，确保流式 token 更新到同一条 assistant 消息
+    const baseId = Date.now();
+
+    // 立即清空输入框
+    setMessageInput("");
+    if (textareaRef.current) textareaRef.current.value = "";
+
+    // 立刻插入本地乐观消息，避免「第一条消息」在创建会话期间空白
+    const now = new Date().toISOString();
+    const optimisticUserMessage: MessageInfo = {
+      id: baseId,
+      role: "user",
+      content,
+      created_at: now,
+      token_in: null,
+      token_out: null,
+    };
+    const optimisticAssistantMessage: MessageInfo = {
+      id: baseId + 1,
+      role: "assistant",
+      content: "",
+      created_at: now,
+      token_in: null,
+      token_out: null,
+    };
+    setLocalMessages((prev) => [...prev, optimisticUserMessage, optimisticAssistantMessage]);
+    setIsStreaming(true);
+
+    try {
+      let conversationId = selectedConversationId;
+      if (!conversationId) {
+        const newConversation = await createConversationMutation.mutateAsync(classId);
+        conversationId = newConversation.id;
+        setSelectedConversationId(conversationId);
+      }
+
+      await sendMessageMutation.mutateAsync({
+        conversationId,
+        content,
+        assistantMessageId: optimisticAssistantMessage.id,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    } catch {
+      return;
     }
   };
 
-  const conversations = conversationsData?.items || [];
-  const messages = messagesData?.messages || [];
+  const messages = localMessages;
   const classes = classesData?.items || [];
 
   return (
     <div className="flex h-full">
-      {/* Conversation List Sidebar */}
-      <div className="w-80 border-r border-gray-200 bg-white flex flex-col">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-gray-900">对话列表</h2>
-            <Button
-              size="sm"
-              onClick={handleNewConversation}
+      <div className="flex-1 flex flex-col bg-gray-50">
+        <div className="p-4 bg-white border-b border-gray-200">
+          <h3 className="font-semibold text-gray-900">
+            {selectedConversation
+              ? selectedConversation.title || `对话 #${selectedConversation.id}`
+              : "新对话"}
+          </h3>
+          <p className="text-sm text-gray-500">
+            {selectedConversation
+              ? selectedConversation.class_name
+              : classes.find((c) => c.id === selectedClassId)?.name ||
+                classes[0]?.name ||
+                "未选择班级"}
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {selectedConversationId || isStreaming || localMessages.length > 0 ? (
+            messagesLoading && messages.length === 0 && !isStreaming ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="text-center text-gray-500 py-12">
+                <p className="text-lg mb-2">开始你的编程学习之旅</p>
+                <p className="text-sm">
+                  输入你的编程问题，AI助手会通过提问引导你思考
+                </p>
+              </div>
+            ) : (
+              messages.map((msg) => <MessageBubble key={msg.id} message={msg} />)
+            )
+          ) : (
+            <div className="flex items-center justify-center text-gray-500 py-16">
+              <div className="text-center">
+                <MessageSquare className="mx-auto mb-4 text-gray-300" size={64} />
+                <p className="text-lg">开始一个新对话</p>
+                <p className="text-sm mt-2">发送第一条消息后才会出现在左侧列表</p>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <form
+          onSubmit={handleSendMessage}
+          className="p-4 bg-white border-t border-gray-200"
+        >
+          <div className="flex gap-3">
+            <textarea
+              ref={textareaRef}
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              placeholder={classes.length === 0 ? "暂无班级，无法开始对话" : "输入你的问题..."}
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={2}
               disabled={classes.length === 0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void handleSendMessage(e);
+                }
+              }}
+            />
+            <Button
+              type="submit"
+              disabled={
+                classes.length === 0 ||
+                !messageInput.trim() ||
+                sendMessageMutation.isPending ||
+                createConversationMutation.isPending ||
+                isStreaming
+              }
+              loading={
+                sendMessageMutation.isPending ||
+                createConversationMutation.isPending ||
+                isStreaming
+              }
+              className="self-end"
             >
-              <Plus size={16} className="mr-1" />
-              新对话
+              <Send size={18} />
             </Button>
           </div>
-          {classes.length > 1 && (
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              value={selectedClassId || ""}
-              onChange={(e) =>
-                setSelectedClassId(e.target.value ? Number(e.target.value) : null)
-              }
-            >
-              <option value="">全部班级</option>
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {conversationsLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            </div>
-          ) : conversations.length === 0 ? (
-            <div className="p-4 text-center text-gray-500 text-sm">
-              <MessageSquare className="mx-auto mb-2 text-gray-400" size={32} />
-              <p>暂无对话</p>
-              <p className="text-xs mt-1">点击"新对话"开始学习</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {conversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => setSelectedConversation(conv)}
-                  className={cn(
-                    "w-full p-4 text-left hover:bg-gray-50 transition-colors",
-                    selectedConversation?.id === conv.id && "bg-blue-50"
-                  )}
-                >
-                  <div className="font-medium text-sm text-gray-900 truncate">
-                    {conv.title || `对话 #${conv.id}`}
-                  </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-gray-500">
-                      {conv.class_name}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {conv.last_message_at
-                        ? formatRelativeTime(conv.last_message_at)
-                        : formatRelativeTime(conv.created_at)}
-                    </span>
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {conv.message_count} 条消息
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col bg-gray-50">
-        {selectedConversation ? (
-          <>
-            {/* Chat Header */}
-            <div className="p-4 bg-white border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">
-                {selectedConversation.title || `对话 #${selectedConversation.id}`}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {selectedConversation.class_name}
-              </p>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messagesLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="text-center text-gray-500 py-12">
-                  <p className="text-lg mb-2">开始你的编程学习之旅</p>
-                  <p className="text-sm">
-                    输入你的编程问题，AI助手会通过提问引导你思考
-                  </p>
-                </div>
-              ) : (
-                messages.map((msg) => (
-                  <MessageBubble key={msg.id} message={msg} />
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input Area */}
-            <form
-              onSubmit={handleSendMessage}
-              className="p-4 bg-white border-t border-gray-200"
-            >
-              <div className="flex gap-3">
-                <textarea
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="输入你的问题..."
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={2}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(e);
-                    }
-                  }}
-                />
-                <Button
-                  type="submit"
-                  disabled={!messageInput.trim() || sendMessageMutation.isPending}
-                  loading={sendMessageMutation.isPending}
-                  className="self-end"
-                >
-                  <Send size={18} />
-                </Button>
-              </div>
-              <p className="text-xs text-gray-400 mt-2">
-                按 Enter 发送，Shift + Enter 换行
-              </p>
-            </form>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
-            <div className="text-center">
-              <MessageSquare className="mx-auto mb-4 text-gray-300" size={64} />
-              <p className="text-lg">选择一个对话或创建新对话</p>
-              <p className="text-sm mt-2">
-                AI助手会通过苏格拉底式提问帮助你学习编程
-              </p>
-            </div>
-          </div>
-        )}
+          <p className="text-xs text-gray-400 mt-2">
+            按 Enter 发送，Shift + Enter 换行
+          </p>
+        </form>
       </div>
     </div>
   );

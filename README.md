@@ -36,6 +36,10 @@ chmod +x ./dev.sh
 ./dev.sh down
 ```
 
+```清理可能存在的残留进程
+pkill -f "next dev"
+```
+
 ### 1. 启动数据库和 Redis
 
 ```bash

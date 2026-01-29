@@ -237,6 +237,17 @@ class ExportJob(Base):
     requester = relationship("User")
 
 
+class SystemConfig(Base):
+    """系统配置（键值对存储，持久化保存）"""
+
+    __tablename__ = "system_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(100), unique=True, nullable=False, index=True)
+    value = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 class AuditLog(Base):
     """审计日志"""
 

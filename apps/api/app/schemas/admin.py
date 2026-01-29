@@ -86,3 +86,26 @@ class StudentClassUpdateResponse(BaseModel):
     student_id: int
     class_id: int
     class_name: str
+
+
+class LLMSettingsResponse(BaseModel):
+    provider: str
+    base_url: str
+    model_name: str
+    api_key_configured: bool
+
+
+class LLMSettingsUpdateRequest(BaseModel):
+    provider: Optional[str] = None
+    base_url: Optional[str] = None
+    model_name: Optional[str] = None
+    api_key: Optional[str] = None
+    clear_api_key: bool = False
+
+
+class LLMSettingsTestResponse(BaseModel):
+    ok: bool
+    provider: str
+    model_name: str
+    latency_ms: int
+    error: Optional[str] = None

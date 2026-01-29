@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import List, Optional, AsyncGenerator
 import httpx
 from app.config import get_settings
+from app.llm.runtime_settings import get_llm_runtime_settings
 
 settings = get_settings()
 
@@ -36,7 +37,7 @@ class LLMProvider(ABC):
         pass
 
     @abstractmethod
-    async def chat_stream(
+    def chat_stream(
         self,
         messages: List[ChatMessage],
         temperature: float = 0.7,
@@ -102,50 +103,54 @@ class OpenAICompatibleProvider(LLMProvider):
             latency_ms=latency_ms,
         )
 
-    async def chat_stream(
+    def chat_stream(
         self,
         messages: List[ChatMessage],
         temperature: float = 0.7,
         max_tokens: int = 2048,
     ) -> AsyncGenerator[str, None]:
-        payload = {
-            "model": self.model,
-            "messages": [{"role": m.role, "content": m.content} for m in messages],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": True,
-        }
+        async def _generator() -> AsyncGenerator[str, None]:
+            payload = {
+                "model": self.model,
+                "messages": [{"role": m.role, "content": m.content} for m in messages],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": True,
+            }
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
 
-        async with self.client.stream(
-            "POST",
-            f"{self.base_url}/chat/completions",
-            json=payload,
-            headers=headers,
-        ) as response:
-            response.raise_for_status()
-            async for line in response.aiter_lines():
-                if line.startswith("data: "):
-                    data = line[6:]
-                    if data == "[DONE]":
-                        break
-                    import json
+            async with self.client.stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                json=payload,
+                headers=headers,
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+                        import json
 
-                    chunk = json.loads(data)
-                    delta = chunk.get("choices", [{}])[0].get("delta", {})
-                    if "content" in delta:
-                        yield delta["content"]
+                        chunk = json.loads(data)
+                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+                        if "content" in delta:
+                            yield delta["content"]
+
+        return _generator()
 
 
 def get_llm_provider() -> LLMProvider:
     """获取配置的 LLM Provider"""
+    runtime = get_llm_runtime_settings()
     return OpenAICompatibleProvider(
-        api_key=settings.openai_api_key,
-        base_url=settings.openai_base_url,
-        model=settings.model_name,
-        provider_name=settings.model_provider,
+        api_key=runtime.api_key or settings.openai_api_key,
+        base_url=runtime.base_url or settings.openai_base_url,
+        model=runtime.model_name or settings.model_name,
+        provider_name=runtime.provider or settings.model_provider,
     )

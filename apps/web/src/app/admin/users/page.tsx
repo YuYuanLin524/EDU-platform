@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import * as XLSX from "xlsx";
 import { api, UserRole, UserStatus } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,12 +76,16 @@ function getErrorMessage(error: unknown): string {
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
 
-  const [importMethod, setImportMethod] = useState<"form" | "json">("form");
+  const [importMethod, setImportMethod] = useState<"form" | "json" | "excel">(
+    "form"
+  );
   const [jsonInput, setJsonInput] = useState("");
   const [formUsers, setFormUsers] = useState<UserToImport[]>([
     { username: "", display_name: "", role: "student", class_name: "" },
   ]);
   const [importResults, setImportResults] = useState<ImportResponse | null>(null);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [excelDefaultRole, setExcelDefaultRole] = useState<UserRole>("student");
 
   const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
   const [searchText, setSearchText] = useState("");
@@ -94,6 +99,7 @@ export default function AdminUsersPage() {
   const [resettingUserId, setResettingUserId] = useState<number | null>(null);
   const [resetPasswordInput, setResetPasswordInput] = useState("");
   const [resetResult, setResetResult] = useState<ResetPasswordResult | null>(null);
+  const [copiedPassword, setCopiedPassword] = useState(false);
 
   const [managingTeacherId, setManagingTeacherId] = useState<number | null>(null);
   const [teacherClassIds, setTeacherClassIds] = useState<number[]>([]);
@@ -126,6 +132,8 @@ export default function AdminUsersPage() {
       // Reset form after successful import
       setFormUsers([{ username: "", display_name: "", role: "student", class_name: "" }]);
       setJsonInput("");
+      // 自动刷新用户列表
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
     },
     onError: (error) => {
       alert("导入失败: " + (error as Error).message);
@@ -306,6 +314,110 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleDownloadExcelTemplate = () => {
+    const rows = [
+      ["username", "display_name", "role", "class_name"],
+      ["20240001", "张三", "student", "初一(1)班"],
+      ["T20240001", "王老师", "teacher", ""],
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "users");
+    const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([arrayBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "users_template.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const parseRoleValue = (value: unknown): UserRole | null => {
+    const raw = String(value ?? "")
+      .trim()
+      .toLowerCase();
+    if (!raw) return null;
+    if (raw === "student" || raw === "学生") return "student";
+    if (raw === "teacher" || raw === "教师") return "teacher";
+    if (raw === "admin" || raw === "管理员") return "admin";
+    return null;
+  };
+
+  const handleExcelSubmit = async () => {
+    if (!excelFile) {
+      alert("请选择要导入的 Excel 文件");
+      return;
+    }
+
+    const buffer = await excelFile.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(worksheet, {
+      header: 1,
+      defval: "",
+    }) as unknown[][];
+
+    const headerRow = rows[0] || [];
+    const headerIndex: Record<string, number> = {};
+    headerRow.forEach((h, i) => {
+      const key = String(h ?? "").trim().toLowerCase();
+      if (!key) return;
+      headerIndex[key] = i;
+    });
+
+    const pick = (row: unknown[], keys: string[]) => {
+      for (const k of keys) {
+        const idx = headerIndex[k];
+        if (typeof idx === "number") return row[idx];
+      }
+      return "";
+    };
+
+    const users: UserToImport[] = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i] || [];
+      const username = String(
+        pick(row, ["username", "学号/工号", "学号", "工号"])
+      ).trim();
+      if (!username) continue;
+
+      const displayName = String(pick(row, ["display_name", "姓名", "名字"])).trim();
+      const roleRaw = pick(row, ["role", "角色"]);
+      const role = parseRoleValue(roleRaw) || excelDefaultRole;
+      if (role !== "student" && role !== "teacher") continue;
+
+      const className = String(pick(row, ["class_name", "班级"])).trim();
+      users.push({
+        username,
+        display_name: displayName || undefined,
+        role,
+        class_name: className || undefined,
+      });
+    }
+
+    if (users.length === 0) {
+      alert("未解析到有效用户，请检查表头与内容");
+      return;
+    }
+
+    if (classes.length === 0 && users.some((u) => u.role === "student")) {
+      alert("尚未创建班级，无法导入学生账户。请先创建班级。");
+      return;
+    }
+
+    const missingClass = users.filter((u) => u.role === "student" && !u.class_name);
+    if (missingClass.length > 0) {
+      alert("Excel 导入：学生账户必须提供 class_name/班级");
+      return;
+    }
+
+    importMutation.mutate(users);
+  };
+
   const handleDownloadTemplate = () => {
     const template = [
       {
@@ -463,6 +575,9 @@ export default function AdminUsersPage() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
+      setCopiedPassword(true);
+      // 2秒后自动隐藏提示
+      setTimeout(() => setCopiedPassword(false), 2000);
     } catch {
       alert("复制失败，请手动复制");
     }
@@ -505,7 +620,6 @@ export default function AdminUsersPage() {
                 <option value="all">全部</option>
                 <option value="student">学生</option>
                 <option value="teacher">教师</option>
-                <option value="admin">管理员</option>
               </select>
             </div>
             <div className="flex-1 min-w-[220px]">
@@ -563,7 +677,7 @@ export default function AdminUsersPage() {
                             variant="outline"
                             onClick={() => copyToClipboard(resetResult.new_password)}
                           >
-                            复制
+                            {copiedPassword ? "✅ 已复制" : "复制"}
                           </Button>
                           <Button
                             size="sm"
@@ -1111,6 +1225,13 @@ export default function AdminUsersPage() {
           表单添加
         </Button>
         <Button
+          variant={importMethod === "excel" ? "primary" : "outline"}
+          onClick={() => setImportMethod("excel")}
+        >
+          <Upload size={16} className="mr-1" />
+          Excel导入
+        </Button>
+        <Button
           variant={importMethod === "json" ? "primary" : "outline"}
           onClick={() => setImportMethod("json")}
         >
@@ -1285,6 +1406,67 @@ export default function AdminUsersPage() {
                   <li><code className="bg-gray-100 px-1 rounded">display_name</code> - 姓名（选填）</li>
                   <li><code className="bg-gray-100 px-1 rounded">role</code> - 角色：student/teacher（必填）</li>
                   <li><code className="bg-gray-100 px-1 rounded">class_name</code> - 班级名称（学生必填，需先创建班级）</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Excel Import */}
+      {importMethod === "excel" && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <CardTitle>Excel批量导入</CardTitle>
+              <Button size="sm" variant="outline" onClick={handleDownloadExcelTemplate}>
+                <Download size={14} className="mr-1" />
+                下载模板
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    默认角色（当 Excel 未提供 role/角色 时）
+                  </label>
+                  <select
+                    className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    value={excelDefaultRole}
+                    onChange={(e) => setExcelDefaultRole(e.target.value as UserRole)}
+                  >
+                    <option value="student">学生</option>
+                    <option value="teacher">教师</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    选择文件（.xlsx/.xls/.csv）
+                  </label>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                    onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={() => void handleExcelSubmit()}
+                loading={importMutation.isPending}
+                disabled={!excelFile}
+              >
+                导入用户
+              </Button>
+              <div className="text-sm text-gray-500 space-y-1">
+                <p>支持表头（任意一种即可）：</p>
+                <ul className="list-disc list-inside ml-2">
+                  <li>username / 学号/工号（必填）</li>
+                  <li>display_name / 姓名（选填）</li>
+                  <li>role / 角色（student/teacher，可选）</li>
+                  <li>class_name / 班级（学生必填，需先创建班级）</li>
                 </ul>
               </div>
             </div>

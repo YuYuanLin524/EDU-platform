@@ -20,10 +20,10 @@ class Settings(BaseSettings):
     jwt_expires_minutes: int = 60
 
     # Model
-    model_provider: str = "openai"
+    model_provider: str = "deepseek"
     openai_api_key: str = ""
-    openai_base_url: str = "https://api.openai.com/v1"
-    model_name: str = "gpt-4o-mini"
+    openai_base_url: str = "https://api.deepseek.com/v1"
+    model_name: str = "deepseek-chat"
 
     # Export
     export_storage: str = "local"

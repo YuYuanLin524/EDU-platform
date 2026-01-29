@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, PromptInfo, ClassInfo, ScopeType } from "@/lib/api";
+import { api, PromptInfo, ScopeType } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ export default function TeacherPromptsPage() {
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newPromptContent, setNewPromptContent] = useState("");
-  const [newPromptScope, setNewPromptScope] = useState<ScopeType>("global");
+  const [newPromptScope, setNewPromptScope] = useState<ScopeType>("class");
 
   const { data: classesData } = useQuery({
     queryKey: ["classes", user?.role, user?.id],
@@ -24,12 +24,35 @@ export default function TeacherPromptsPage() {
   });
 
   const { data: promptsData, isLoading } = useQuery({
-    queryKey: ["prompts", selectedClassId],
-    queryFn: () =>
-      api.getPrompts(
-        selectedClassId ? "class" : undefined,
-        selectedClassId ?? undefined
-      ),
+    queryKey: ["prompts", "history", selectedClassId, classesData?.items?.length],
+    queryFn: async () => {
+      const classes = classesData?.items || [];
+      if (selectedClassId) {
+        return api.getPrompts("class", selectedClassId, 1, 200);
+      }
+
+      const [globalHistory, ...classHistories] = await Promise.all([
+        api.getPrompts("global", undefined, 1, 200),
+        ...classes.map((c) => api.getPrompts("class", c.id, 1, 200)),
+      ]);
+
+      const classNameById = new Map(classes.map((c) => [c.id, c.name]));
+
+      const merged: PromptInfo[] = [
+        ...(globalHistory.items || []),
+        ...classHistories.flatMap((h) =>
+          (h.items || []).map((p) => ({
+            ...p,
+            class_name: p.class_name || (p.class_id ? classNameById.get(p.class_id) : undefined) || null,
+          }))
+        ),
+      ];
+
+      merged.sort((a, b) => (b.id || 0) - (a.id || 0));
+
+      return { total: merged.length, items: merged };
+    },
+    enabled: !!classesData,
   });
 
   const createPromptMutation = useMutation({
@@ -106,7 +129,9 @@ export default function TeacherPromptsPage() {
                   value={newPromptScope}
                   onChange={(e) => setNewPromptScope(e.target.value as ScopeType)}
                 >
-                  <option value="global">全局（所有班级）</option>
+                  {user?.role === "admin" && (
+                    <option value="global">全局（所有班级）</option>
+                  )}
                   <option value="class">班级专属</option>
                 </select>
               </div>

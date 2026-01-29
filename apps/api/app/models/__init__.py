@@ -13,6 +13,7 @@ from app.models.models import (
     ExportJob,
     ExportStatus,
     AuditLog,
+    SystemConfig,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "ExportJob",
     "ExportStatus",
     "AuditLog",
+    "SystemConfig",
 ]

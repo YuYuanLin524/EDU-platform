@@ -7,6 +7,7 @@ from app.models import (
     UserRole,
     Conversation,
     Message,
+    MessageRole,
     Class,
     ClassStudent,
     ClassTeacher,
@@ -129,14 +130,25 @@ async def get_student_conversations(
     class_result = await db.execute(select(Class).where(Class.id == class_id))
     class_obj = class_result.scalar_one_or_none()
 
+    assistant_exists = (
+        select(Message.id)
+        .where(
+            Message.conversation_id == Conversation.id,
+            Message.role == MessageRole.ASSISTANT,
+        )
+        .exists()
+    )
+
     # 查询对话
     query = select(Conversation).where(
         Conversation.class_id == class_id,
         Conversation.student_id == student_id,
+        assistant_exists,
     )
     count_query = select(func.count(Conversation.id)).where(
         Conversation.class_id == class_id,
         Conversation.student_id == student_id,
+        assistant_exists,
     )
 
     total_result = await db.execute(count_query)

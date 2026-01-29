@@ -294,12 +294,81 @@ class ApiClient {
     return response.data;
   }
 
+  async sendMessageStream(
+    conversationId: number,
+    content: string,
+    onToken: (token: string) => void,
+    onError?: (message: string) => void
+  ): Promise<void> {
+    const response = await fetch(
+      `${API_BASE_URL}/conversations/${conversationId}/messages/stream`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+        },
+        body: JSON.stringify({ content }),
+      }
+    );
+
+    if (!response.ok || !response.body) {
+      const text = await response.text();
+      throw new Error(text || "stream failed");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const events = buffer.split("\n\n");
+      buffer = events.pop() || "";
+
+      for (const event of events) {
+        const lines = event.split("\n");
+        let eventType = "message";
+        let data = "";
+        for (const line of lines) {
+          if (line.startsWith("event:")) {
+            eventType = line.replace("event:", "").trim();
+          } else if (line.startsWith("data:")) {
+            // SSE 格式是 "data: content"，去掉 "data: " 前缀（注意冒号后有空格）
+            const content = line.startsWith("data: ") ? line.slice(6) : line.slice(5);
+            data += content;
+          }
+        }
+
+        if (data === "" || data === "[DONE]") {
+          if (data === "[DONE]") return;
+          continue;
+        }
+        if (eventType === "error") {
+          if (onError) onError(data);
+          return;
+        }
+        onToken(data);
+      }
+    }
+  }
+
   // Teacher endpoints
   async getClassStudents(classId: number): Promise<StudentInClass[]> {
-    const response = await this.client.get<StudentInClass[]>(
+    const response = await this.client.get<unknown>(
       `/teacher/classes/${classId}/students`
     );
-    return response.data;
+    const data = response.data;
+    if (Array.isArray(data)) return data as StudentInClass[];
+    if (data && typeof data === "object") {
+      const obj = data as { items?: unknown; students?: unknown };
+      if (Array.isArray(obj.items)) return obj.items as StudentInClass[];
+      if (Array.isArray(obj.students)) return obj.students as StudentInClass[];
+    }
+    return [];
   }
 
   async getStudentConversations(
@@ -327,14 +396,14 @@ class ApiClient {
 
   // Prompt endpoints
   async getPrompts(
-    scopeType?: ScopeType,
+    scopeType: ScopeType = "global",
     classId?: number,
-    skip = 0,
-    limit = 50
+    page = 1,
+    pageSize = 50
   ): Promise<PaginatedResponse<PromptInfo>> {
     const response = await this.client.get<PaginatedResponse<PromptInfo>>(
-      "/prompts/",
-      { params: { scope_type: scopeType, class_id: classId, skip, limit } }
+      "/prompts/history",
+      { params: { scope_type: scopeType, class_id: classId, page, page_size: pageSize } }
     );
     return response.data;
   }
@@ -345,7 +414,7 @@ class ApiClient {
     classId?: number,
     autoActivate = true
   ): Promise<PromptInfo> {
-    const response = await this.client.post<PromptInfo>("/prompts/", {
+    const response = await this.client.post<PromptInfo>("/prompts", {
       content,
       scope_type: scopeType,
       class_id: classId,
@@ -359,9 +428,9 @@ class ApiClient {
   }
 
   async getEffectivePrompt(classId: number): Promise<EffectivePrompt> {
-    const response = await this.client.get<EffectivePrompt>(
-      `/prompts/effective/${classId}`
-    );
+    const response = await this.client.get<EffectivePrompt>("/prompts/effective", {
+      params: { class_id: classId },
+    });
     return response.data;
   }
 
@@ -397,6 +466,10 @@ class ApiClient {
       responseType: "blob",
     });
     return response.data;
+  }
+
+  async deleteExport(jobId: number): Promise<void> {
+    await this.client.delete(`/exports/${jobId}`);
   }
 
   // Admin endpoints
@@ -454,6 +527,43 @@ class ApiClient {
     const response = await this.client.get("/admin/users", {
       params: { role, page, page_size: pageSize },
     });
+    return response.data;
+  }
+
+  async getLLMSettings(): Promise<{
+    provider: string;
+    base_url: string;
+    model_name: string;
+    api_key_configured: boolean;
+  }> {
+    const response = await this.client.get("/admin/llm-settings");
+    return response.data;
+  }
+
+  async updateLLMSettings(data: {
+    provider?: string;
+    base_url?: string;
+    model_name?: string;
+    api_key?: string;
+    clear_api_key?: boolean;
+  }): Promise<{
+    provider: string;
+    base_url: string;
+    model_name: string;
+    api_key_configured: boolean;
+  }> {
+    const response = await this.client.put("/admin/llm-settings", data);
+    return response.data;
+  }
+
+  async testLLMSettings(): Promise<{
+    ok: boolean;
+    provider: string;
+    model_name: string;
+    latency_ms: number;
+    error?: string | null;
+  }> {
+    const response = await this.client.post("/admin/llm-settings/test");
     return response.data;
   }
 

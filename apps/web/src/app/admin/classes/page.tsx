@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
-import { Plus, Users, Trash2, UserPlus } from "lucide-react";
+import { Plus, Users, UserPlus } from "lucide-react";
 
 export default function AdminClassesPage() {
   const queryClient = useQueryClient();
@@ -38,25 +38,6 @@ export default function AdminClassesPage() {
     enabled: !!selectedClass,
   });
 
-  const removeStudentMutation = useMutation({
-    mutationFn: ({ classId, studentId }: { classId: number; studentId: number }) =>
-      api.removeStudentFromClass(classId, studentId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["class-detail"] });
-      queryClient.invalidateQueries({ queryKey: ["classes"] });
-      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
-    },
-  });
-
-  const removeTeacherMutation = useMutation({
-    mutationFn: ({ classId, teacherId }: { classId: number; teacherId: number }) =>
-      api.removeTeacherFromClass(classId, teacherId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["class-detail"] });
-      queryClient.invalidateQueries({ queryKey: ["classes"] });
-      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
-    },
-  });
 
   const classes = classesData?.items || [];
 
@@ -152,18 +133,7 @@ export default function AdminClassesPage() {
                              工号: {teacher.username}
                            </p>
                          </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            removeTeacherMutation.mutate({
-                              classId: classDetail.id,
-                              teacherId: teacher.id,
-                            })
-                          }
-                        >
-                          <Trash2 size={14} className="text-red-500" />
-                        </Button>
+                        <span className="text-xs text-gray-400">只读</span>
                       </div>
                     ))}
                   </div>
@@ -192,18 +162,7 @@ export default function AdminClassesPage() {
                              学号: {student.username}
                            </p>
                          </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            removeStudentMutation.mutate({
-                              classId: classDetail.id,
-                              studentId: student.id,
-                            })
-                          }
-                        >
-                          <Trash2 size={14} className="text-red-500" />
-                        </Button>
+                        <span className="text-xs text-gray-400">只读</span>
                       </div>
                     ))}
                   </div>
