@@ -17,7 +17,6 @@ from app.models import (
     AuditLog,
     PromptScope,
     ExportJob,
-    SystemConfig,
 )
 from app.schemas.admin import (
     BulkImportRequest,
@@ -32,52 +31,12 @@ from app.schemas.admin import (
     UpdateUserRequest,
     UpdateUserResponse,
     DeleteUserResponse,
-    LLMSettingsResponse,
-    LLMSettingsUpdateRequest,
-    LLMSettingsTestResponse,
 )
 from app.schemas.auth import ResetPasswordRequest, ResetPasswordResponse
 from app.auth.security import hash_password
 from app.auth.deps import require_admin
-from app.config import get_settings
-from app.llm.runtime_settings import get_llm_runtime_settings, update_llm_runtime_settings
-from app.llm.provider import get_llm_provider, ChatMessage
 
 router = APIRouter(prefix="/admin", tags=["超管"])
-settings = get_settings()
-
-LLM_CONFIG_KEYS = {
-    "provider": "llm.provider",
-    "base_url": "llm.base_url",
-    "model_name": "llm.model_name",
-    "api_key": "llm.api_key",
-}
-
-
-async def _get_llm_config_map(db: AsyncSession) -> dict[str, str]:
-    result = await db.execute(
-        select(SystemConfig).where(SystemConfig.key.in_(LLM_CONFIG_KEYS.values()))
-    )
-    rows = result.scalars().all()
-    return {row.key: row.value for row in rows}
-
-
-async def _set_system_config_value(
-    db: AsyncSession, key: str, value: Optional[str]
-) -> None:
-    result = await db.execute(select(SystemConfig).where(SystemConfig.key == key))
-    existing = result.scalar_one_or_none()
-
-    if value is None:
-        if existing:
-            await db.delete(existing)
-        return
-
-    if existing:
-        existing.value = value
-        existing.updated_at = datetime.utcnow()
-    else:
-        db.add(SystemConfig(key=key, value=value, updated_at=datetime.utcnow()))
 
 
 def generate_random_password(length: int = 12) -> str:
@@ -209,11 +168,8 @@ async def list_users(
     admin: User = Depends(require_admin),
 ):
     """获取用户列表"""
-    if role == UserRole.ADMIN:
-        return UserListResponse(total=0, items=[])
-
-    query = select(User).where(User.role != UserRole.ADMIN)
-    count_query = select(func.count(User.id)).where(User.role != UserRole.ADMIN)
+    query = select(User)
+    count_query = select(func.count(User.id))
 
     if role:
         query = query.where(User.role == role)
@@ -270,103 +226,6 @@ async def list_users(
     ]
 
     return UserListResponse(total=total, items=items)
-
-
-@router.get("/llm-settings", response_model=LLMSettingsResponse)
-async def get_llm_settings(
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
-):
-    config = await _get_llm_config_map(db)
-    provider = config.get(LLM_CONFIG_KEYS["provider"]) or settings.model_provider
-    base_url = config.get(LLM_CONFIG_KEYS["base_url"]) or settings.openai_base_url
-    model_name = config.get(LLM_CONFIG_KEYS["model_name"]) or settings.model_name
-    api_key_configured = bool(
-        config.get(LLM_CONFIG_KEYS["api_key"]) or settings.openai_api_key
-    )
-    return LLMSettingsResponse(
-        provider=provider,
-        base_url=base_url,
-        model_name=model_name,
-        api_key_configured=api_key_configured,
-    )
-
-
-@router.put("/llm-settings", response_model=LLMSettingsResponse)
-async def update_llm_settings(
-    request: LLMSettingsUpdateRequest,
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
-):
-    if request.provider is not None:
-        await _set_system_config_value(
-            db, LLM_CONFIG_KEYS["provider"], request.provider
-        )
-    if request.base_url is not None:
-        await _set_system_config_value(
-            db, LLM_CONFIG_KEYS["base_url"], request.base_url
-        )
-    if request.model_name is not None:
-        await _set_system_config_value(
-            db, LLM_CONFIG_KEYS["model_name"], request.model_name
-        )
-    if request.clear_api_key:
-        await _set_system_config_value(db, LLM_CONFIG_KEYS["api_key"], None)
-    elif request.api_key is not None:
-        await _set_system_config_value(
-            db, LLM_CONFIG_KEYS["api_key"], request.api_key
-        )
-
-    await db.commit()
-
-    config = await _get_llm_config_map(db)
-    update_llm_runtime_settings(
-        provider=config.get(LLM_CONFIG_KEYS["provider"]),
-        base_url=config.get(LLM_CONFIG_KEYS["base_url"]),
-        model_name=config.get(LLM_CONFIG_KEYS["model_name"]),
-        api_key=config.get(LLM_CONFIG_KEYS["api_key"]),
-        clear_api_key=request.clear_api_key,
-    )
-
-    provider = config.get(LLM_CONFIG_KEYS["provider"]) or settings.model_provider
-    base_url = config.get(LLM_CONFIG_KEYS["base_url"]) or settings.openai_base_url
-    model_name = config.get(LLM_CONFIG_KEYS["model_name"]) or settings.model_name
-    api_key_configured = bool(
-        config.get(LLM_CONFIG_KEYS["api_key"]) or settings.openai_api_key
-    )
-    return LLMSettingsResponse(
-        provider=provider,
-        base_url=base_url,
-        model_name=model_name,
-        api_key_configured=api_key_configured,
-    )
-
-
-@router.post("/llm-settings/test", response_model=LLMSettingsTestResponse)
-async def test_llm_settings(admin: User = Depends(require_admin)):
-    provider = get_llm_provider()
-    try:
-        resp = await provider.chat(
-            [ChatMessage(role="user", content="ping")],
-            temperature=0.0,
-            max_tokens=4,
-        )
-        return LLMSettingsTestResponse(
-            ok=True,
-            provider=resp.provider,
-            model_name=resp.model,
-            latency_ms=resp.latency_ms,
-            error=None,
-        )
-    except Exception as e:
-        runtime = get_llm_runtime_settings()
-        return LLMSettingsTestResponse(
-            ok=False,
-            provider=(runtime.provider or settings.model_provider),
-            model_name=(runtime.model_name or settings.model_name),
-            latency_ms=0,
-            error=str(e),
-        )
 
 
 @router.post("/users/{user_id}/reset-password", response_model=ResetPasswordResponse)

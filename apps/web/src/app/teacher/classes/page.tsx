@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { api, ClassInfo, StudentInClass, ConversationInfo, MessageInfo } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatDate, formatRelativeTime } from "@/lib/utils";
@@ -12,22 +14,8 @@ import { Users, MessageSquare, ChevronRight, ArrowLeft } from "lucide-react";
 type ViewState =
   | { type: "classes" }
   | { type: "students"; classId: number; className: string }
-  | {
-      type: "conversations";
-      classId: number;
-      className: string;
-      studentId: number;
-      studentName: string;
-    }
-  | {
-      type: "messages";
-      classId: number;
-      className: string;
-      studentId: number;
-      studentName: string;
-      conversationId: number;
-      conversationTitle: string;
-    };
+  | { type: "conversations"; classId: number; studentId: number; studentName: string }
+  | { type: "messages"; conversationId: number; conversationTitle: string };
 
 export default function TeacherClassesPage() {
   const [viewState, setViewState] = useState<ViewState>({ type: "classes" });
@@ -52,7 +40,6 @@ export default function TeacherClassesPage() {
               setViewState({
                 type: "conversations",
                 classId: viewState.classId,
-                className: viewState.className,
                 studentId,
                 studentName,
               })
@@ -69,16 +56,12 @@ export default function TeacherClassesPage() {
               setViewState({
                 type: "students",
                 classId: viewState.classId,
-                className: viewState.className,
+                className: "",
               })
             }
             onSelectConversation={(conversationId, title) =>
               setViewState({
                 type: "messages",
-                classId: viewState.classId,
-                className: viewState.className,
-                studentId: viewState.studentId,
-                studentName: viewState.studentName,
                 conversationId,
                 conversationTitle: title,
               })
@@ -90,15 +73,7 @@ export default function TeacherClassesPage() {
           <MessageView
             conversationId={viewState.conversationId}
             title={viewState.conversationTitle}
-            onBack={() =>
-              setViewState({
-                type: "conversations",
-                classId: viewState.classId,
-                className: viewState.className,
-                studentId: viewState.studentId,
-                studentName: viewState.studentName,
-              })
-            }
+            onBack={() => setViewState({ type: "classes" })}
           />
         );
     }

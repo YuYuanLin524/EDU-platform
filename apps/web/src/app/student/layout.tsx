@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
-import { StudentConversationSidebar } from "@/components/student/student-conversation-sidebar";
+import { Sidebar } from "@/components/layout/sidebar";
 
 export default function StudentLayout({
   children,
@@ -11,7 +11,7 @@ export default function StudentLayout({
   return (
     <AuthGuard allowedRoles={["student"]}>
       <div className="flex h-screen bg-gray-50">
-        <StudentConversationSidebar />
+        <Sidebar />
         <main className="flex-1 overflow-hidden">{children}</main>
       </div>
     </AuthGuard>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuthStore } from "@/stores/auth";
-import { AuthModal } from "@/components/auth/auth-modal";
 import { 
   Code2, 
   Sparkles, 
@@ -18,12 +18,10 @@ import {
 export default function HomePage() {
   const router = useRouter();
   const { isAuthenticated, isLoading, user, checkAuth } = useAuthStore();
-  const [authOpen, setAuthOpen] = useState(false);
-  const [authEntry, setAuthEntry] = useState<"student" | "teacher">("student");
 
   useEffect(() => {
     checkAuth();
-  }, [checkAuth]);
+  }, []);
 
   useEffect(() => {
     if (isLoading) return;
@@ -73,28 +71,20 @@ export default function HomePage() {
               </span>
             </div>
             
-             <div className="flex items-center gap-4">
-               <button
-                 type="button"
-                 className="clay-btn px-6 py-2.5 text-sm font-bold bg-blue-600 text-white hover:bg-blue-700"
-                  onClick={() => {
-                    setAuthEntry("student");
-                    setAuthOpen(true);
-                  }}
-                >
-                  学生登录
-                </button>
-                <button
-                  type="button"
-                 className="hidden md:block px-6 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-all active:scale-95"
-                  onClick={() => {
-                    setAuthEntry("teacher");
-                    setAuthOpen(true);
-                  }}
-                >
-                  教师入口
-                </button>
-              </div>
+            <div className="flex items-center gap-4">
+              <Link 
+                href="/login" 
+                className="hidden md:block px-6 py-2.5 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition-all active:scale-95"
+              >
+                学生登录
+              </Link>
+              <Link 
+                href="/login" 
+                className="clay-btn px-6 py-2.5 text-sm font-bold bg-blue-600 text-white hover:bg-blue-700"
+              >
+                立即开始
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
@@ -119,17 +109,13 @@ export default function HomePage() {
                 通过苏格拉底式问答，带你领略编程的逻辑之美。
               </p>
               <div className="flex flex-wrap gap-6">
-                <button
-                  type="button"
+                <Link 
+                  href="/login" 
                   className="clay-btn px-10 py-5 bg-blue-600 text-white font-black text-xl hover:bg-blue-700 flex items-center gap-3 group"
-                  onClick={() => {
-                    setAuthEntry("student");
-                    setAuthOpen(true);
-                  }}
                 >
                   开启探索之旅
                   <Rocket className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                </button>
+                </Link>
                 <div className="flex items-center gap-4 text-sm font-bold text-slate-500 bg-white/50 px-6 py-2 rounded-2xl border border-white/40 backdrop-blur-sm">
                   <div className="flex -space-x-2">
                     {[1,2,3,4].map(i => (
@@ -239,7 +225,6 @@ export default function HomePage() {
           </p>
         </div>
       </footer>
-      <AuthModal open={authOpen} onOpenChange={setAuthOpen} entry={authEntry} />
     </div>
   );
 }
