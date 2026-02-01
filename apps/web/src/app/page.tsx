@@ -3,7 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { useAuthStore } from "@/stores/auth";
+import { ParticleBackground } from "@/components/effects/ParticleBackground";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   Code2, 
   Sparkles, 
@@ -12,7 +16,8 @@ import {
   Rocket, 
   ChevronRight,
   Zap,
-  Star
+  Star,
+  ArrowRight
 } from "lucide-react";
 
 export default function HomePage() {
@@ -43,30 +48,49 @@ export default function HomePage() {
 
   if (isLoading || (isAuthenticated && user)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F0F4F8]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary"></div>
       </div>
     );
   }
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut",
+      },
+    },
+  };
+
   return (
-    <div className="min-h-screen bg-[#F0F4F8] text-slate-900 selection:bg-blue-200 font-sans overflow-x-hidden">
-      {/* Decorative Background Elements */}
-      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-sky-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-[-20%] left-[20%] w-[40%] h-[40%] bg-slate-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
-      </div>
+    <div className="min-h-screen bg-white text-foreground overflow-x-hidden">
+      {/* Particle Background */}
+      <ParticleBackground />
 
       {/* Navbar */}
       <nav className="fixed top-6 left-0 right-0 z-50 px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="clay-card px-6 py-3 flex justify-between items-center">
+          <div className="bg-card/80 backdrop-blur-md border border-border rounded-xl px-6 py-3 flex justify-between items-center shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-200">
-                <Code2 className="w-6 h-6 text-white" />
+              <div className="bg-primary p-2 rounded-lg">
+                <Code2 className="w-6 h-6 text-primary-foreground" />
               </div>
-              <span className="text-xl font-black tracking-tight text-blue-900">
+              <span className="text-xl font-bold tracking-tight text-foreground">
                 SocraticCode
               </span>
             </div>
@@ -74,15 +98,16 @@ export default function HomePage() {
             <div className="flex items-center gap-4">
               <Link 
                 href="/login" 
-                className="hidden md:block px-6 py-2.5 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition-all active:scale-95"
+                className="hidden md:block"
               >
-                学生登录
+                <Button variant="ghost" size="sm">
+                  学生登录
+                </Button>
               </Link>
-              <Link 
-                href="/login" 
-                className="clay-btn px-6 py-2.5 text-sm font-bold bg-blue-600 text-white hover:bg-blue-700"
-              >
-                立即开始
+              <Link href="/login">
+                <Button size="sm">
+                  立即开始
+                </Button>
               </Link>
             </div>
           </div>
@@ -90,119 +115,138 @@ export default function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-40 pb-20 px-4">
+      <motion.section 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="pt-40 pb-20 px-4 relative z-10"
+      >
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="text-left relative">
-              <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-blue-100 text-blue-900 text-sm font-bold mb-8 shadow-sm animate-bounce clay-btn border-none">
-                <Star className="w-4 h-4 fill-blue-900" />
-                <span>AI 驱动的沉浸式编程学习</span>
-              </div>
-              <h1 className="text-6xl md:text-7xl font-black leading-tight mb-8 text-slate-800 tracking-tight text-clay">
+              <motion.div variants={itemVariants}>
+                <Badge variant="secondary" className="mb-8 px-4 py-2">
+                  <Star className="w-4 h-4 mr-2" />
+                  AI 驱动的沉浸式编程学习
+                </Badge>
+              </motion.div>
+              
+              <motion.h1 
+                variants={itemVariants}
+                className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight mb-8 text-foreground tracking-tight"
+              >
                 玩转代码<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-sky-500">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-600">
                   解锁未来
                 </span>
-              </h1>
-              <p className="text-xl text-slate-600 mb-10 leading-relaxed font-medium max-w-lg">
+              </motion.h1>
+              
+              <motion.p 
+                variants={itemVariants}
+                className="text-lg md:text-xl text-muted-foreground mb-10 leading-relaxed max-w-lg"
+              >
                 SocraticCode 不只是一个工具，而是你的 24小时 AI 编程私教。
                 通过苏格拉底式问答，带你领略编程的逻辑之美。
-              </p>
-              <div className="flex flex-wrap gap-6">
-                <Link 
-                  href="/login" 
-                  className="clay-btn px-10 py-5 bg-blue-600 text-white font-black text-xl hover:bg-blue-700 flex items-center gap-3 group"
-                >
-                  开启探索之旅
-                  <Rocket className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+              </motion.p>
+              
+              <motion.div variants={itemVariants} className="flex flex-wrap gap-6">
+                <Link href="/login">
+                  <Button size="lg" className="text-lg px-10 py-6">
+                    开启探索之旅
+                    <Rocket className="w-5 h-5 ml-2" />
+                  </Button>
                 </Link>
-                <div className="flex items-center gap-4 text-sm font-bold text-slate-500 bg-white/50 px-6 py-2 rounded-2xl border border-white/40 backdrop-blur-sm">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground bg-card/50 px-6 py-3 rounded-lg border border-border">
                   <div className="flex -space-x-2">
                     {[1,2,3,4].map(i => (
-                      <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200" style={{backgroundImage: `url(https://api.dicebear.com/7.x/avataaars/svg?seed=${i})`}}></div>
+                      <div 
+                        key={i} 
+                        className="w-8 h-8 rounded-full border-2 border-background bg-muted" 
+                        style={{backgroundImage: `url(https://api.dicebear.com/7.x/avataaars/svg?seed=${i})`}}
+                      />
                     ))}
                   </div>
-                  <span>1000+ 同学已加入</span>
+                  <span className="font-medium">1000+ 同学已加入</span>
                 </div>
-              </div>
+              </motion.div>
             </div>
 
-            <div className="relative perspective-1000">
-              <div className="clay-card p-8 rotate-y-12 rotate-x-6 transform transition-transform hover:transform-none duration-500">
-                <div className="absolute -top-6 -right-6 w-20 h-20 bg-sky-400 rounded-full flex items-center justify-center shadow-lg animate-pulse z-10 border-4 border-white">
-                  <Zap className="w-10 h-10 text-white fill-white" />
+            <motion.div variants={itemVariants} className="relative">
+              <div className="bg-card border border-border rounded-xl p-8 shadow-lg transition-transform hover:scale-[1.02] duration-300">
+                <div className="absolute -top-4 -right-4 w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-lg animate-pulse z-10">
+                  <Zap className="w-8 h-8 text-primary-foreground" />
                 </div>
                 
                 <div className="flex flex-col gap-6">
                   {/* Chat Mockup */}
                   <div className="flex gap-4 items-end">
-                    <div className="w-12 h-12 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden">
+                    <div className="w-12 h-12 rounded-full bg-muted border-2 border-background shadow-sm overflow-hidden">
                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
                     </div>
-                    <div className="clay-card px-6 py-4 rounded-bl-none text-slate-700 font-bold text-sm bg-white">
+                    <div className="bg-muted px-6 py-4 rounded-xl rounded-bl-none text-foreground text-sm max-w-[70%]">
                       为什么我的代码跑不通？这里的逻辑好像有点乱... 🤯
                     </div>
                   </div>
 
                   <div className="flex gap-4 flex-row-reverse items-end">
-                    <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center border-2 border-white shadow-sm overflow-hidden">
-                      <Code2 className="w-7 h-7 text-white" />
+                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center border-2 border-background shadow-sm">
+                      <Code2 className="w-6 h-6 text-primary-foreground" />
                     </div>
-                    <div className="clay-card-primary px-6 py-4 rounded-br-none text-sm font-bold">
+                    <div className="bg-primary text-primary-foreground px-6 py-4 rounded-xl rounded-br-none text-sm max-w-[70%]">
                       别担心！试着把问题拆解一下。你觉得这行循环的终止条件是什么？🤔
                     </div>
                   </div>
 
-                  <div className="mt-2 pt-4 border-t border-slate-100/50 flex gap-3">
-                    <div className="flex-1 bg-slate-50/50 rounded-2xl px-4 py-3 text-sm text-slate-400 font-bold border border-slate-100 shadow-inner">
+                  <div className="mt-2 pt-4 border-t border-border flex gap-3">
+                    <div className="flex-1 bg-muted/50 rounded-lg px-4 py-3 text-sm text-muted-foreground border border-border">
                       正在输入...
                     </div>
-                    <div className="clay-btn bg-blue-600 w-12 h-12 flex items-center justify-center text-white">
-                      <ChevronRight className="w-6 h-6" />
-                    </div>
+                    <Button size="icon" className="w-12 h-12">
+                      <ChevronRight className="w-5 h-5" />
+                    </Button>
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Features Section */}
-      <section id="features" className="py-24 px-4 relative">
+      <section id="features" className="py-24 px-4 relative z-10">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-            <h2 className="text-5xl font-black mb-6 text-slate-800 text-clay">为什么选择 SocraticCode?</h2>
-            <p className="text-xl text-slate-500 font-bold">告别枯燥，让编程学习变得像玩游戏一样有趣</p>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 text-foreground">为什么选择 SocraticCode?</h2>
+            <p className="text-lg md:text-xl text-muted-foreground">告别枯燥，让编程学习变得像玩游戏一样有趣</p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="clay-card p-10 hover:-translate-y-2 transition-transform duration-300">
-              <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mb-8 text-blue-600 clay-btn border-none">
-                <MessageSquare className="w-10 h-10" />
+            <div className="bg-card border border-border rounded-xl p-10 hover:-translate-y-2 transition-all duration-300 shadow-sm hover:shadow-md">
+              <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center mb-8">
+                <MessageSquare className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="text-2xl font-black mb-4 text-blue-900">启发式引导</h3>
-              <p className="text-slate-600 font-medium leading-relaxed">
+              <h3 className="text-2xl font-bold mb-4 text-foreground">启发式引导</h3>
+              <p className="text-muted-foreground leading-relaxed">
                 我们不直接给答案。AI 导师通过巧妙的提问，引导你自己找到解决问题的钥匙，真正掌握编程思维。
               </p>
             </div>
 
-            <div className="clay-card p-10 hover:-translate-y-2 transition-transform duration-300">
-              <div className="w-20 h-20 bg-cyan-50 rounded-3xl flex items-center justify-center mb-8 text-cyan-600 clay-btn border-none">
-                <BookOpen className="w-10 h-10" />
+            <div className="bg-card border border-border rounded-xl p-10 hover:-translate-y-2 transition-all duration-300 shadow-sm hover:shadow-md">
+              <div className="w-16 h-16 bg-cyan-500/10 rounded-lg flex items-center justify-center mb-8">
+                <BookOpen className="w-8 h-8 text-cyan-600" />
               </div>
-              <h3 className="text-2xl font-black mb-4 text-cyan-900">个性化辅导</h3>
-              <p className="text-slate-600 font-medium leading-relaxed">
+              <h3 className="text-2xl font-bold mb-4 text-foreground">个性化辅导</h3>
+              <p className="text-muted-foreground leading-relaxed">
                 无论你是初学者还是进阶玩家，AI 都会根据你的水平调整教学节奏，为你量身定制学习路径。
               </p>
             </div>
 
-            <div className="clay-card p-10 hover:-translate-y-2 transition-transform duration-300">
-              <div className="w-20 h-20 bg-sky-50 rounded-3xl flex items-center justify-center mb-8 text-sky-600 clay-btn border-none">
-                <Sparkles className="w-10 h-10" />
+            <div className="bg-card border border-border rounded-xl p-10 hover:-translate-y-2 transition-all duration-300 shadow-sm hover:shadow-md">
+              <div className="w-16 h-16 bg-blue-500/10 rounded-lg flex items-center justify-center mb-8">
+                <Sparkles className="w-8 h-8 text-blue-600" />
               </div>
-              <h3 className="text-2xl font-black mb-4 text-sky-900">实时反馈</h3>
-              <p className="text-slate-600 font-medium leading-relaxed">
+              <h3 className="text-2xl font-bold mb-4 text-foreground">实时反馈</h3>
+              <p className="text-muted-foreground leading-relaxed">
                 写代码不再孤单。实时获得代码审查和优化建议，每一个 bug 都是成长的机会，让进步看得见。
               </p>
             </div>
@@ -211,15 +255,15 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 bg-white/50 backdrop-blur-sm border-t border-white/60">
+      <footer className="py-12 bg-muted/50 border-t border-border relative z-10">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <div className="flex justify-center items-center gap-3 mb-6">
-            <div className="bg-blue-600 p-2 rounded-xl shadow-lg">
-              <Code2 className="w-6 h-6 text-white" />
+            <div className="bg-primary p-2 rounded-lg">
+              <Code2 className="w-6 h-6 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-black text-blue-900">SocraticCode</span>
+            <span className="text-2xl font-bold text-foreground">SocraticCode</span>
           </div>
-          <p className="text-slate-500 font-bold text-sm">
+          <p className="text-muted-foreground text-sm">
             Designed for the builders of tomorrow.<br />
             © 2024 SocraticCode. All rights reserved.
           </p>
