@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import List, Optional, AsyncGenerator
 import httpx
 from app.config import get_settings
+from app.llm.runtime_settings import get_llm_runtime_settings
 
 settings = get_settings()
 
@@ -36,13 +37,13 @@ class LLMProvider(ABC):
         pass
 
     @abstractmethod
-    async def chat_stream(
+    def chat_stream(
         self,
         messages: List[ChatMessage],
         temperature: float = 0.7,
         max_tokens: int = 2048,
     ) -> AsyncGenerator[str, None]:
-        pass
+        raise NotImplementedError
 
 
 class OpenAICompatibleProvider(LLMProvider):
@@ -143,9 +144,15 @@ class OpenAICompatibleProvider(LLMProvider):
 
 def get_llm_provider() -> LLMProvider:
     """获取配置的 LLM Provider"""
+    runtime = get_llm_runtime_settings()
+    api_key = runtime.api_key or settings.openai_api_key
+    base_url = runtime.base_url or settings.openai_base_url
+    model_name = runtime.model_name or settings.model_name
+    provider_name = runtime.provider or settings.model_provider
+
     return OpenAICompatibleProvider(
-        api_key=settings.openai_api_key,
-        base_url=settings.openai_base_url,
-        model=settings.model_name,
-        provider_name=settings.model_provider,
+        api_key=api_key,
+        base_url=base_url,
+        model=model_name,
+        provider_name=provider_name,
     )

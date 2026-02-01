@@ -15,6 +15,7 @@ import {
   BookOpen,
   UserPlus,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface NavItem {
   label: string;
@@ -66,17 +67,13 @@ export function Sidebar() {
   const navItems = getNavItems();
 
   return (
-    <div className="flex flex-col h-full w-64 bg-white border-r border-gray-200">
+    <div className="flex flex-col h-full w-64 bg-card border-r border-border">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <h1 className="text-lg font-semibold text-gray-900">Socratic Tutor</h1>
-        <p className="text-sm text-gray-500">{user?.display_name || user?.username}</p>
-        <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
-          {user?.role === "admin"
-            ? "管理员"
-            : user?.role === "teacher"
-            ? "教师"
-            : "学生"}
+      <div className="p-4 border-b border-border">
+        <h1 className="text-lg font-semibold text-foreground">Socratic Tutor</h1>
+        <p className="text-sm text-muted-foreground">{user?.display_name || user?.username}</p>
+        <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
+          {user?.role === "admin" ? "管理员" : user?.role === "teacher" ? "教师" : "学生"}
         </span>
       </div>
 
@@ -91,9 +88,7 @@ export function Sidebar() {
               prefetch={false}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
+                isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
               )}
             >
               {item.icon}
@@ -104,14 +99,15 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
-        <button
+      <div className="p-4 border-t border-border">
+        <Button
+          variant="ghost"
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+          className="flex items-center gap-3 w-full justify-start px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-muted-foreground"
         >
           <LogOut size={20} />
           退出登录
-        </button>
+        </Button>
       </div>
     </div>
   );

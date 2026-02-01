@@ -1,70 +1,46 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, PromptInfo, ClassInfo, ScopeType } from "@/lib/api";
-import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { formatDate } from "@/lib/utils";
-import { FileText, Plus, Check, History } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { FileText, Plus } from "lucide-react";
+import { ScopeType } from "@/lib/api";
+import { usePromptManagement } from "./hooks/usePromptManagement";
+import { PromptCard } from "./components";
 
 export default function TeacherPromptsPage() {
-  const queryClient = useQueryClient();
-  const user = useAuthStore((s) => s.user);
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newPromptContent, setNewPromptContent] = useState("");
-  const [newPromptScope, setNewPromptScope] = useState<ScopeType>("global");
+  const {
+    classes,
+    globalPrompts,
+    classPrompts,
+    isLoading,
+    showCreateForm,
+    setShowCreateForm,
+    newPromptContent,
+    setNewPromptContent,
+    newPromptScope,
+    setNewPromptScope,
+    selectedClassId,
+    setSelectedClassId,
+    createPromptMutation,
+    activatePromptMutation,
+    handleCloseForm,
+  } = usePromptManagement();
 
-  const { data: classesData } = useQuery({
-    queryKey: ["classes", user?.role, user?.id],
-    queryFn: () => api.getClasses(),
-  });
-
-  const { data: promptsData, isLoading } = useQuery({
-    queryKey: ["prompts", selectedClassId],
-    queryFn: () =>
-      api.getPrompts(
-        selectedClassId ? "class" : undefined,
-        selectedClassId ?? undefined
-      ),
-  });
-
-  const createPromptMutation = useMutation({
-    mutationFn: () =>
-      api.createPrompt(
-        newPromptContent,
-        newPromptScope,
-        newPromptScope === "class" ? selectedClassId ?? undefined : undefined,
-        true
-      ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prompts"] });
-      setShowCreateForm(false);
-      setNewPromptContent("");
-    },
-  });
-
-  const activatePromptMutation = useMutation({
-    mutationFn: (promptId: number) => api.activatePrompt(promptId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prompts"] });
-    },
-  });
-
-  const classes = classesData?.items || [];
-  const prompts = promptsData?.items || [];
-
-  // Group prompts by scope
-  const globalPrompts = prompts.filter((p) => p.scope_type === "global");
-  const classPrompts = prompts.filter((p) => p.scope_type === "class");
+  const prompts = [...globalPrompts, ...classPrompts];
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">提示词管理</h1>
+        <h1 className="text-2xl font-bold text-foreground">提示词管理</h1>
         <Button onClick={() => setShowCreateForm(true)}>
           <Plus size={16} className="mr-1" />
           新建提示词
@@ -73,20 +49,22 @@ export default function TeacherPromptsPage() {
 
       {/* Filter */}
       <div className="mb-6">
-        <select
-          className="px-4 py-2 border border-gray-300 rounded-lg"
-          value={selectedClassId || ""}
-          onChange={(e) =>
-            setSelectedClassId(e.target.value ? Number(e.target.value) : null)
-          }
+        <Select
+          value={selectedClassId?.toString() || "all"}
+          onValueChange={(value) => setSelectedClassId(value === "all" ? null : Number(value))}
         >
-          <option value="">全部提示词</option>
-          {classes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} 班级提示词
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-[240px]">
+            <SelectValue placeholder="全部提示词" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">全部提示词</SelectItem>
+            {classes.map((c) => (
+              <SelectItem key={c.id} value={c.id.toString()}>
+                {c.name} 班级提示词
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Create Form Modal */}
@@ -98,68 +76,58 @@ export default function TeacherPromptsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  作用范围
-                </label>
-                <select
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                <Label className="mb-2 block">作用范围</Label>
+                <Select
                   value={newPromptScope}
-                  onChange={(e) => setNewPromptScope(e.target.value as ScopeType)}
+                  onValueChange={(value) => setNewPromptScope(value as ScopeType)}
                 >
-                  <option value="global">全局（所有班级）</option>
-                  <option value="class">班级专属</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="global">全局（所有班级）</SelectItem>
+                    <SelectItem value="class">班级专属</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               {newPromptScope === "class" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    选择班级
-                  </label>
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    value={selectedClassId || ""}
-                    onChange={(e) =>
-                      setSelectedClassId(
-                        e.target.value ? Number(e.target.value) : null
-                      )
-                    }
+                  <Label className="mb-2 block">选择班级</Label>
+                  <Select
+                    value={selectedClassId?.toString() || ""}
+                    onValueChange={(value) => setSelectedClassId(value ? Number(value) : null)}
                   >
-                    <option value="">请选择班级</option>
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="请选择班级" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map((c) => (
+                        <SelectItem key={c.id} value={c.id.toString()}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  提示词内容
-                </label>
-                <textarea
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg h-64 font-mono text-sm"
+                <Label className="mb-2 block">提示词内容</Label>
+                <Textarea
+                  className="h-64 font-mono text-sm"
                   value={newPromptContent}
                   onChange={(e) => setNewPromptContent(e.target.value)}
                   placeholder="输入系统提示词内容..."
                 />
               </div>
               <div className="flex justify-end gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowCreateForm(false);
-                    setNewPromptContent("");
-                  }}
-                >
+                <Button variant="outline" onClick={handleCloseForm}>
                   取消
                 </Button>
                 <Button
                   onClick={() => createPromptMutation.mutate()}
                   loading={createPromptMutation.isPending}
                   disabled={
-                    !newPromptContent.trim() ||
-                    (newPromptScope === "class" && !selectedClassId)
+                    !newPromptContent.trim() || (newPromptScope === "class" && !selectedClassId)
                   }
                 >
                   创建并激活
@@ -172,12 +140,12 @@ export default function TeacherPromptsPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       ) : prompts.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-gray-500">
-            <FileText className="mx-auto mb-4 text-gray-300" size={48} />
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <FileText className="mx-auto mb-4 text-muted-foreground/40" size={48} />
             <p>暂无提示词</p>
             <p className="text-sm mt-1">点击"新建提示词"开始创建</p>
           </CardContent>
@@ -187,9 +155,7 @@ export default function TeacherPromptsPage() {
           {/* Global Prompts */}
           {globalPrompts.length > 0 && (
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                全局提示词
-              </h2>
+              <h2 className="text-lg font-semibold text-foreground mb-3">全局提示词</h2>
               <div className="space-y-3">
                 {globalPrompts.map((prompt) => (
                   <PromptCard
@@ -206,9 +172,7 @@ export default function TeacherPromptsPage() {
           {/* Class Prompts */}
           {classPrompts.length > 0 && (
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                班级提示词
-              </h2>
+              <h2 className="text-lg font-semibold text-foreground mb-3">班级提示词</h2>
               <div className="space-y-3">
                 {classPrompts.map((prompt) => (
                   <PromptCard
@@ -224,79 +188,5 @@ export default function TeacherPromptsPage() {
         </div>
       )}
     </div>
-  );
-}
-
-function PromptCard({
-  prompt,
-  onActivate,
-  isActivating,
-}: {
-  prompt: PromptInfo;
-  onActivate: () => void;
-  isActivating: boolean;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <Card
-      className={cn(
-        "transition-all",
-        prompt.is_active && "ring-2 ring-green-500"
-      )}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              {prompt.is_active && (
-                <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
-                  <Check size={12} />
-                  当前激活
-                </span>
-              )}
-              <span className="text-xs text-gray-500">
-                v{prompt.version} · {formatDate(prompt.created_at)}
-              </span>
-              {prompt.class_name && (
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                  {prompt.class_name}
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-gray-500 mt-1">
-              创建者：{prompt.creator_name || "未知"}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {!prompt.is_active && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onActivate}
-                disabled={isActivating}
-              >
-                <History size={14} className="mr-1" />
-                回滚到此版本
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setExpanded(!expanded)}
-            >
-              {expanded ? "收起" : "展开"}
-            </Button>
-          </div>
-        </div>
-        {expanded && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono">
-              {prompt.content}
-            </pre>
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }

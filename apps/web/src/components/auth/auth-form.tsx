@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Entry = "student" | "teacher";
@@ -20,8 +21,7 @@ export function AuthForm({
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
-  const { login, isAuthenticated, mustChangePassword, user, changePassword } =
-    useAuthStore();
+  const { login, isAuthenticated, mustChangePassword, user, changePassword } = useAuthStore();
 
   const [entry, setEntry] = useState<Entry>(initialEntry);
   const [username, setUsername] = useState("");
@@ -112,45 +112,50 @@ export function AuthForm({
       <>
         <CardHeader className="text-center">
           <CardTitle className="text-xl">首次登录请修改密码</CardTitle>
-          <p className="text-sm text-slate-500 mt-2 font-medium">
+          <p className="text-sm text-muted-foreground mt-2 font-medium">
             欢迎 {user?.display_name || user?.username}，为了账户安全，请设置新密码
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleChangePassword} className="space-y-4">
-            <Input
-              label="原密码"
-              type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              placeholder="请输入原密码"
-              required
-              autoComplete="current-password"
-            />
-            <Input
-              label="新密码"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="请输入新密码（至少6位）"
-              required
-              autoComplete="new-password"
-            />
-            <Input
-              label="确认新密码"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="请再次输入新密码"
-              required
-              autoComplete="new-password"
-            />
+            <div className="grid gap-2">
+              <Label htmlFor="old-password">原密码</Label>
+              <Input
+                id="old-password"
+                type="password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                placeholder="请输入原密码"
+                required
+                autoComplete="current-password"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="new-password">新密码</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="请输入新密码（至少6位）"
+                required
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="confirm-password">确认新密码</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="请再次输入新密码"
+                required
+                autoComplete="new-password"
+              />
+            </div>
 
-            {error && (
-              <p className="text-sm text-red-600 text-center font-medium">
-                {error}
-              </p>
-            )}
+            {error && <p className="text-sm text-destructive text-center font-medium">{error}</p>}
 
             <Button type="submit" className="w-full" loading={loading}>
               确认修改
@@ -165,19 +170,15 @@ export function AuthForm({
     <>
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">{title}</CardTitle>
-        <p className="text-sm text-slate-500 mt-2 font-medium">{hintText}</p>
+        <p className="text-sm text-muted-foreground mt-2 font-medium">{hintText}</p>
       </CardHeader>
       <CardContent>
         {showEntrySwitcher ? (
           <div className="flex gap-2 mb-4">
             <Button
               type="button"
-              variant={entry === "student" ? "primary" : "outline"}
-              className={`flex-1 ${
-                entry === "student"
-                  ? "bg-blue-600 hover:bg-blue-700 text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
+              variant={entry === "student" ? "default" : "outline"}
+              className="flex-1"
               onClick={() => setEntry("student")}
             >
               学生登录
@@ -185,11 +186,7 @@ export function AuthForm({
             <Button
               type="button"
               variant={entry === "teacher" ? "secondary" : "outline"}
-              className={`flex-1 ${
-                entry === "teacher"
-                  ? "bg-gray-700 hover:bg-gray-800 text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
+              className="flex-1"
               onClick={() => setEntry("teacher")}
             >
               教师入口
@@ -198,39 +195,36 @@ export function AuthForm({
         ) : null}
 
         <form onSubmit={handleLogin} className="space-y-4">
-          <Input
-            label={usernameLabel}
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder={usernamePlaceholder}
-            required
-            autoComplete="username"
-          />
-          <Input
-            label="密码"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="请输入密码"
-            required
-            autoComplete="current-password"
-          />
+          <div className="grid gap-2">
+            <Label htmlFor="username">{usernameLabel}</Label>
+            <Input
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder={usernamePlaceholder}
+              required
+              autoComplete="username"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="password">密码</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="请输入密码"
+              required
+              autoComplete="current-password"
+            />
+          </div>
 
-          {error && (
-            <p className="text-sm text-red-600 text-center font-medium">
-              {error}
-            </p>
-          )}
+          {error && <p className="text-sm text-destructive text-center font-medium">{error}</p>}
 
           <div className="flex gap-3">
             {onCancel ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => onCancel()}
-              >
+              <Button type="button" variant="outline" className="w-full" onClick={() => onCancel()}>
                 取消
               </Button>
             ) : null}

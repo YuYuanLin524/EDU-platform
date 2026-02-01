@@ -12,12 +12,11 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   const router = useRouter();
-  const { isAuthenticated, isLoading, user, checkAuth, mustChangePassword } =
-    useAuthStore();
+  const { isAuthenticated, isLoading, user, checkAuth, mustChangePassword } = useAuthStore();
 
   useEffect(() => {
     checkAuth();
-  }, []);
+  }, [checkAuth]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -51,7 +50,7 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }

@@ -38,10 +38,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
 
       return response.must_change_password;
-     } catch {
-       set({ user: null, isAuthenticated: false });
-       throw new Error("登录失败，请检查学号/工号和密码");
-     }
+    } catch {
+      set({ user: null, isAuthenticated: false });
+      throw new Error("登录失败，请检查学号/工号和密码");
+    }
   },
 
   logout: () => {
@@ -57,8 +57,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     api.loadToken();
 
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
     if (!token) {
       set({ isLoading: false, isAuthenticated: false });

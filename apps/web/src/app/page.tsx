@@ -5,19 +5,19 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useAuthStore } from "@/stores/auth";
+import { getDefaultRoute } from "@/lib/navigation";
 import { ParticleBackground } from "@/components/effects/ParticleBackground";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Code2, 
-  Sparkles, 
-  BookOpen, 
-  MessageSquare, 
-  Rocket, 
+import {
+  Code2,
+  Sparkles,
+  BookOpen,
+  MessageSquare,
+  Rocket,
   ChevronRight,
   Zap,
   Star,
-  ArrowRight
 } from "lucide-react";
 
 export default function HomePage() {
@@ -26,23 +26,13 @@ export default function HomePage() {
 
   useEffect(() => {
     checkAuth();
-  }, []);
+  }, [checkAuth]);
 
   useEffect(() => {
     if (isLoading) return;
 
     if (isAuthenticated && user) {
-      switch (user.role) {
-        case "student":
-          router.push("/student/chat");
-          break;
-        case "teacher":
-          router.push("/teacher/classes");
-          break;
-        case "admin":
-          router.push("/admin/users");
-          break;
-      }
+      router.push(getDefaultRoute(user.role));
     }
   }, [isAuthenticated, isLoading, user, router]);
 
@@ -72,7 +62,8 @@ export default function HomePage() {
       y: 0,
       transition: {
         duration: 0.5,
-        ease: "easeOut",
+        // Framer Motion's TS types expect a cubic-bezier or easing function, not a string.
+        ease: [0.16, 1, 0.3, 1] as const,
       },
     },
   };
@@ -90,24 +81,17 @@ export default function HomePage() {
               <div className="bg-primary p-2 rounded-lg">
                 <Code2 className="w-6 h-6 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold tracking-tight text-foreground">
-                SocraticCode
-              </span>
+              <span className="text-xl font-bold tracking-tight text-foreground">SocraticCode</span>
             </div>
-            
+
             <div className="flex items-center gap-4">
-              <Link 
-                href="/login" 
-                className="hidden md:block"
-              >
+              <Link href="/login" className="hidden md:block">
                 <Button variant="ghost" size="sm">
                   学生登录
                 </Button>
               </Link>
               <Link href="/login">
-                <Button size="sm">
-                  立即开始
-                </Button>
+                <Button size="sm">立即开始</Button>
               </Link>
             </div>
           </div>
@@ -115,7 +99,7 @@ export default function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <motion.section 
+      <motion.section
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -130,25 +114,26 @@ export default function HomePage() {
                   AI 驱动的沉浸式编程学习
                 </Badge>
               </motion.div>
-              
-              <motion.h1 
+
+              <motion.h1
                 variants={itemVariants}
                 className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight mb-8 text-foreground tracking-tight"
               >
-                玩转代码<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-600">
+                玩转代码
+                <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/70">
                   解锁未来
                 </span>
               </motion.h1>
-              
-              <motion.p 
+
+              <motion.p
                 variants={itemVariants}
                 className="text-lg md:text-xl text-muted-foreground mb-10 leading-relaxed max-w-lg"
               >
                 SocraticCode 不只是一个工具，而是你的 24小时 AI 编程私教。
                 通过苏格拉底式问答，带你领略编程的逻辑之美。
               </motion.p>
-              
+
               <motion.div variants={itemVariants} className="flex flex-wrap gap-6">
                 <Link href="/login">
                   <Button size="lg" className="text-lg px-10 py-6">
@@ -158,11 +143,13 @@ export default function HomePage() {
                 </Link>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground bg-card/50 px-6 py-3 rounded-lg border border-border">
                   <div className="flex -space-x-2">
-                    {[1,2,3,4].map(i => (
-                      <div 
-                        key={i} 
-                        className="w-8 h-8 rounded-full border-2 border-background bg-muted" 
-                        style={{backgroundImage: `url(https://api.dicebear.com/7.x/avataaars/svg?seed=${i})`}}
+                    {[1, 2, 3, 4].map((i) => (
+                      <div
+                        key={i}
+                        className="w-8 h-8 rounded-full border-2 border-background bg-muted"
+                        style={{
+                          backgroundImage: `url(https://api.dicebear.com/7.x/avataaars/svg?seed=${i})`,
+                        }}
                       />
                     ))}
                   </div>
@@ -176,12 +163,12 @@ export default function HomePage() {
                 <div className="absolute -top-4 -right-4 w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-lg animate-pulse z-10">
                   <Zap className="w-8 h-8 text-primary-foreground" />
                 </div>
-                
+
                 <div className="flex flex-col gap-6">
                   {/* Chat Mockup */}
                   <div className="flex gap-4 items-end">
                     <div className="w-12 h-12 rounded-full bg-muted border-2 border-background shadow-sm overflow-hidden">
-                       <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
                     </div>
                     <div className="bg-muted px-6 py-4 rounded-xl rounded-bl-none text-foreground text-sm max-w-[70%]">
                       为什么我的代码跑不通？这里的逻辑好像有点乱... 🤯
@@ -216,10 +203,14 @@ export default function HomePage() {
       <section id="features" className="py-24 px-4 relative z-10">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 text-foreground">为什么选择 SocraticCode?</h2>
-            <p className="text-lg md:text-xl text-muted-foreground">告别枯燥，让编程学习变得像玩游戏一样有趣</p>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 text-foreground">
+              为什么选择 SocraticCode?
+            </h2>
+            <p className="text-lg md:text-xl text-muted-foreground">
+              告别枯燥，让编程学习变得像玩游戏一样有趣
+            </p>
           </div>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-card border border-border rounded-xl p-10 hover:-translate-y-2 transition-all duration-300 shadow-sm hover:shadow-md">
               <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center mb-8">
@@ -227,13 +218,14 @@ export default function HomePage() {
               </div>
               <h3 className="text-2xl font-bold mb-4 text-foreground">启发式引导</h3>
               <p className="text-muted-foreground leading-relaxed">
-                我们不直接给答案。AI 导师通过巧妙的提问，引导你自己找到解决问题的钥匙，真正掌握编程思维。
+                我们不直接给答案。AI
+                导师通过巧妙的提问，引导你自己找到解决问题的钥匙，真正掌握编程思维。
               </p>
             </div>
 
             <div className="bg-card border border-border rounded-xl p-10 hover:-translate-y-2 transition-all duration-300 shadow-sm hover:shadow-md">
-              <div className="w-16 h-16 bg-cyan-500/10 rounded-lg flex items-center justify-center mb-8">
-                <BookOpen className="w-8 h-8 text-cyan-600" />
+              <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center mb-8">
+                <BookOpen className="w-8 h-8 text-primary" />
               </div>
               <h3 className="text-2xl font-bold mb-4 text-foreground">个性化辅导</h3>
               <p className="text-muted-foreground leading-relaxed">
@@ -242,12 +234,13 @@ export default function HomePage() {
             </div>
 
             <div className="bg-card border border-border rounded-xl p-10 hover:-translate-y-2 transition-all duration-300 shadow-sm hover:shadow-md">
-              <div className="w-16 h-16 bg-blue-500/10 rounded-lg flex items-center justify-center mb-8">
-                <Sparkles className="w-8 h-8 text-blue-600" />
+              <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center mb-8">
+                <Sparkles className="w-8 h-8 text-primary" />
               </div>
               <h3 className="text-2xl font-bold mb-4 text-foreground">实时反馈</h3>
               <p className="text-muted-foreground leading-relaxed">
-                写代码不再孤单。实时获得代码审查和优化建议，每一个 bug 都是成长的机会，让进步看得见。
+                写代码不再孤单。实时获得代码审查和优化建议，每一个 bug
+                都是成长的机会，让进步看得见。
               </p>
             </div>
           </div>
@@ -264,8 +257,8 @@ export default function HomePage() {
             <span className="text-2xl font-bold text-foreground">SocraticCode</span>
           </div>
           <p className="text-muted-foreground text-sm">
-            Designed for the builders of tomorrow.<br />
-            © 2024 SocraticCode. All rights reserved.
+            Designed for the builders of tomorrow.
+            <br />© 2024 SocraticCode. All rights reserved.
           </p>
         </div>
       </footer>

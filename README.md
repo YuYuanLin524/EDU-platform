@@ -41,7 +41,7 @@ pkill -f "next dev"
 ```
 
 ### 1. 启动数据库和 Redis
-
+        
 ```bash
 cd deploy
 docker compose up -d

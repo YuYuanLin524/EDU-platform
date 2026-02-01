@@ -7,6 +7,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Code2, ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/stores/auth";
+import { getDefaultRoute } from "@/lib/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AuthForm } from "@/components/auth/auth-form";
 import { ParticleBackground } from "@/components/effects/ParticleBackground";
@@ -15,38 +16,28 @@ export default function LoginPage() {
   const router = useRouter();
   const { isAuthenticated, mustChangePassword, user } = useAuthStore();
 
+  const redirectByRole = React.useCallback(() => {
+    if (!user) return;
+    router.push(getDefaultRoute(user.role));
+  }, [user, router]);
+
   useEffect(() => {
     if (isAuthenticated && !mustChangePassword) {
       redirectByRole();
     }
-  }, [isAuthenticated, mustChangePassword]);
-
-  const redirectByRole = () => {
-    if (!user) return;
-    switch (user.role) {
-      case "student":
-        router.push("/student/chat");
-        break;
-      case "teacher":
-        router.push("/teacher/classes");
-        break;
-      case "admin":
-        router.push("/admin/users");
-        break;
-    }
-  };
+  }, [isAuthenticated, mustChangePassword, redirectByRole]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 relative overflow-hidden">
       <ParticleBackground />
-      
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-md relative z-10"
       >
-        <Link 
+        <Link
           href="/"
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
         >
@@ -61,12 +52,8 @@ export default function LoginPage() {
                 <Code2 className="w-8 h-8 text-primary-foreground" />
               </div>
             </div>
-            <CardTitle className="text-2xl font-bold">
-              苏格拉底式编程助手
-            </CardTitle>
-            <CardDescription>
-              通过引导式对话帮助你掌握编程技能
-            </CardDescription>
+            <CardTitle className="text-2xl font-bold">苏格拉底式编程助手</CardTitle>
+            <CardDescription>通过引导式对话帮助你掌握编程技能</CardDescription>
           </CardHeader>
           <CardContent>
             <AuthForm initialEntry="student" onSuccess={redirectByRole} />
