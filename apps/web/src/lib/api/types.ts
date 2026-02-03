@@ -26,6 +26,7 @@ export interface ConversationInfo {
   student_id: number;
   student_name: string | null;
   title: string | null;
+  first_user_message_preview: string | null;
   prompt_version: number | null;
   model_provider: string | null;
   model_name: string | null;
@@ -155,4 +156,40 @@ export interface ResetPasswordResult {
   user_id: number;
   username: string;
   new_password: string;
+}
+
+// LLM Configuration types
+export interface LLMConfigResponse {
+  provider_name: string;
+  base_url: string;
+  api_key_masked: string;
+  model_name: string;
+  has_api_key: boolean;
+}
+
+export interface LLMConfigUpdateRequest {
+  provider_name?: string;
+  base_url?: string;
+  api_key?: string;
+  model_name?: string;
+}
+
+export interface LLMConfigUpdateResponse {
+  success: boolean;
+  message: string;
+  config: LLMConfigResponse;
+}
+
+export interface LLMTestRequest {
+  provider_name?: string;
+  base_url?: string;
+  api_key?: string;
+  model_name?: string;
+}
+
+export interface LLMTestResponse {
+  success: boolean;
+  message: string;
+  latency_ms?: number;
+  model?: string;
 }

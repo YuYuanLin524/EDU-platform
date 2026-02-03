@@ -1,20 +1,30 @@
 "use client";
 
 import React from "react";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Code2, ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/stores/auth";
 import { getDefaultRoute } from "@/lib/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AuthForm } from "@/components/auth/auth-form";
-import { ParticleBackground } from "@/components/effects/ParticleBackground";
+import { LazyParticleBackground } from "@/components/effects/LazyParticleBackground";
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
-  const { isAuthenticated, mustChangePassword, user } = useAuthStore();
+  const searchParams = useSearchParams();
+  const role = searchParams.get("role");
+  // Use selectors to only subscribe to needed state
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const mustChangePassword = useAuthStore((s) => s.mustChangePassword);
+  const user = useAuthStore((s) => s.user);
+  // Respect user's motion preferences for accessibility
+  const shouldReduceMotion = useReducedMotion();
+
+  const entry = role === "teacher" ? "teacher" : "student";
+  const isDefaultStudentLogin = !role || role === "student";
 
   const redirectByRole = React.useCallback(() => {
     if (!user) return;
@@ -29,12 +39,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 relative overflow-hidden">
-      <ParticleBackground />
+      <LazyParticleBackground />
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: shouldReduceMotion ? 1 : 0, y: shouldReduceMotion ? 0 : 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5 }}
         className="w-full max-w-md relative z-10"
       >
         <Link
@@ -56,10 +66,37 @@ export default function LoginPage() {
             <CardDescription>通过引导式对话帮助你掌握编程技能</CardDescription>
           </CardHeader>
           <CardContent>
-            <AuthForm initialEntry="student" onSuccess={redirectByRole} />
+            <AuthForm
+              initialEntry={entry}
+              showEntrySwitcher={false}
+              onSuccess={redirectByRole}
+            />
+
+            {isDefaultStudentLogin ? (
+              <div className="mt-6 text-center text-sm text-muted-foreground">
+                <Link href="/login?role=teacher" className="text-foreground hover:underline">
+                  教师入口
+                </Link>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  // Next.js requires useSearchParams() to be wrapped in a Suspense boundary.
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary"></div>
+        </div>
+      }
+    >
+      <LoginPageInner />
+    </Suspense>
   );
 }

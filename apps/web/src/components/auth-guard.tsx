@@ -12,7 +12,12 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   const router = useRouter();
-  const { isAuthenticated, isLoading, user, checkAuth, mustChangePassword } = useAuthStore();
+  // Use selectors to only subscribe to needed state
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const user = useAuthStore((s) => s.user);
+  const checkAuth = useAuthStore((s) => s.checkAuth);
+  const mustChangePassword = useAuthStore((s) => s.mustChangePassword);
 
   useEffect(() => {
     checkAuth();

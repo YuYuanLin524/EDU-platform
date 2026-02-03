@@ -14,8 +14,19 @@ import {
   LogOut,
   BookOpen,
   UserPlus,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useChatContext } from "@/app/student/chat/ChatContext";
+import { formatRelativeTime } from "@/lib/utils";
+import { getConversationTitle } from "@/lib/chat/conversationTitle";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface NavItem {
   label: string;
@@ -43,7 +54,12 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, logout } = useAuthStore();
+  // Use selectors to only subscribe to needed state
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+
+  const isStudentChat = pathname.startsWith("/student/chat");
+  const chatState = useChatContext();
 
   const getNavItems = (): NavItem[] => {
     switch (user?.role) {
@@ -67,7 +83,7 @@ export function Sidebar() {
   const navItems = getNavItems();
 
   return (
-    <div className="flex flex-col h-full w-64 bg-card border-r border-border">
+    <div className={cn("flex flex-col h-full bg-card border-r border-border", isStudentChat ? "w-96" : "w-64")}>
       {/* Header */}
       <div className="p-4 border-b border-border">
         <h1 className="text-lg font-semibold text-foreground">Socratic Tutor</h1>
@@ -78,7 +94,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className={cn("p-4 space-y-1", isStudentChat ? "pb-0" : "flex-1")}>
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
@@ -97,6 +113,98 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {isStudentChat && chatState ? (
+        <div className="flex-1 flex flex-col">
+          <div className="px-4 pt-4 pb-3 border-t border-border">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-foreground">对话列表</h2>
+              <Button
+                size="sm"
+                onClick={chatState.handleNewConversation}
+                disabled={chatState.classes.length === 0}
+              >
+                <Plus size={16} className="mr-1" />
+                新对话
+              </Button>
+            </div>
+            {chatState.classes.length > 1 && (
+              <Select
+                value={chatState.selectedClassId !== null ? String(chatState.selectedClassId) : "all"}
+                onValueChange={(value) =>
+                  chatState.setSelectedClassId(value === "all" ? null : Number(value))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="全部班级" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部班级</SelectItem>
+                  {chatState.classes.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3">
+            {chatState.conversationsLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : chatState.conversations.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground text-sm">
+                <MessageSquare className="mx-auto mb-2 text-muted-foreground" size={32} />
+                <p>暂无对话</p>
+                <p className="text-xs mt-1">点击"新对话"开始学习</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {chatState.conversations.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => chatState.setSelectedConversation(conv)}
+                    className={cn(
+                      "w-full p-4 text-left rounded-lg border border-transparent card-hover",
+                      chatState.selectedConversation?.id === conv.id
+                        ? "bg-primary/10 border-primary/20"
+                        : "bg-card hover:bg-muted border-border"
+                    )}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <div
+                        className={cn(
+                          "w-2 h-2 rounded-full",
+                          chatState.selectedConversation?.id === conv.id
+                            ? "bg-primary"
+                            : "bg-muted-foreground"
+                        )}
+                      />
+                      <span className="font-medium text-sm text-foreground truncate">
+                        {getConversationTitle(conv)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">{conv.class_name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {conv.last_message_at
+                          ? formatRelativeTime(conv.last_message_at)
+                          : formatRelativeTime(conv.created_at)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {conv.message_count} 条消息
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {/* Footer */}
       <div className="p-4 border-t border-border">

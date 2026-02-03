@@ -3,10 +3,10 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useAuthStore } from "@/stores/auth";
 import { getDefaultRoute } from "@/lib/navigation";
-import { ParticleBackground } from "@/components/effects/ParticleBackground";
+import { LazyParticleBackground } from "@/components/effects/LazyParticleBackground";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,7 +22,11 @@ import {
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading, user, checkAuth } = useAuthStore();
+  // Use selectors to only subscribe to needed state
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const user = useAuthStore((s) => s.user);
+  const checkAuth = useAuthStore((s) => s.checkAuth);
 
   useEffect(() => {
     checkAuth();
@@ -36,6 +40,9 @@ export default function HomePage() {
     }
   }, [isAuthenticated, isLoading, user, router]);
 
+  // Respect user's motion preferences for accessibility
+  const shouldReduceMotion = useReducedMotion();
+
   if (isLoading || (isAuthenticated && user)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -44,34 +51,38 @@ export default function HomePage() {
     );
   }
 
+  // Variants that respect reduced motion preferences
   const containerVariants = {
-    hidden: { opacity: 0 },
+    hidden: { opacity: shouldReduceMotion ? 1 : 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.15,
-        delayChildren: 0.2,
-      },
+      transition: shouldReduceMotion
+        ? {}
+        : {
+            staggerChildren: 0.15,
+            delayChildren: 0.2,
+          },
     },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: shouldReduceMotion ? 1 : 0, y: shouldReduceMotion ? 0 : 20 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: {
-        duration: 0.5,
-        // Framer Motion's TS types expect a cubic-bezier or easing function, not a string.
-        ease: [0.16, 1, 0.3, 1] as const,
-      },
+      transition: shouldReduceMotion
+        ? { duration: 0 }
+        : {
+            duration: 0.5,
+            ease: [0.16, 1, 0.3, 1] as const,
+          },
     },
   };
 
   return (
     <div className="min-h-screen bg-white text-foreground overflow-x-hidden">
       {/* Particle Background */}
-      <ParticleBackground />
+      <LazyParticleBackground />
 
       {/* Navbar */}
       <nav className="fixed top-6 left-0 right-0 z-50 px-4">
@@ -85,13 +96,13 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-4">
-              <Link href="/login" className="hidden md:block">
-                <Button variant="ghost" size="sm">
-                  学生登录
-                </Button>
+              <Link href="/login?role=student">
+                <Button size="sm">学生登录</Button>
               </Link>
-              <Link href="/login">
-                <Button size="sm">立即开始</Button>
+              <Link href="/login?role=teacher" className="hidden md:block">
+                <Button variant="ghost" size="sm">
+                  教师入口
+                </Button>
               </Link>
             </div>
           </div>
@@ -135,7 +146,7 @@ export default function HomePage() {
               </motion.p>
 
               <motion.div variants={itemVariants} className="flex flex-wrap gap-6">
-                <Link href="/login">
+                <Link href="/login?role=student">
                   <Button size="lg" className="text-lg px-10 py-6">
                     开启探索之旅
                     <Rocket className="w-5 h-5 ml-2" />

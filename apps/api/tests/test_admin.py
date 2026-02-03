@@ -11,7 +11,8 @@ Tests:
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
-from app.models import User, UserRole, UserStatus, PromptScope, ScopeType, ExportJob, ExportStatus, AuditLog
+from app.models import User, UserRole, UserStatus, PromptScope, ScopeType, ExportJob, ExportStatus, AuditLog, SystemConfig
+from app.llm.runtime_settings import get_llm_runtime_settings
 
 from tests.conftest import auth_header
 
@@ -215,12 +216,13 @@ class TestListUsers:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] >= 3  # admin, student, teacher
-        assert len(data["items"]) >= 3
+        # Admin users are excluded from the list (only student and teacher visible)
+        assert data["total"] >= 2  # student, teacher
+        assert len(data["items"]) >= 2
 
         by_username = {u["username"]: u for u in data["items"]}
-        assert "class_names" in by_username["admin"]
-        assert by_username["admin"]["class_names"] == []
+        # Admin should not appear in list
+        assert "admin" not in by_username
         assert fully_setup_class.name in by_username["student1"]["class_names"]
         assert fully_setup_class.name in by_username["teacher1"]["class_names"]
 
@@ -502,3 +504,70 @@ class TestDeleteUser:
         ).scalars().all()
         assert len(login_logs) == 1
         assert login_logs[0].actor_id is None
+
+
+class TestAdminLlmSettings:
+    async def test_update_llm_settings_updates_runtime(
+        self,
+        client: AsyncClient,
+        admin_token: str,
+    ):
+        payload = {
+            "provider_name": "openai",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "test-key",
+            "model_name": "gpt-4o-mini",
+        }
+
+        response = await client.put(
+            "/admin/settings/llm",
+            json=payload,
+            headers=auth_header(admin_token),
+        )
+
+        assert response.status_code == 200
+
+        runtime = get_llm_runtime_settings()
+        assert runtime.provider == payload["provider_name"]
+        assert runtime.base_url == payload["base_url"]
+        assert runtime.api_key == payload["api_key"]
+        assert runtime.model_name == payload["model_name"]
+
+    async def test_llm_settings_persist_with_dotted_keys(
+        self,
+        client: AsyncClient,
+        admin_token: str,
+        test_session,
+    ):
+        payload = {
+            "provider_name": "openai",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "test-key",
+            "model_name": "gpt-4o-mini",
+        }
+
+        response = await client.put(
+            "/admin/settings/llm",
+            json=payload,
+            headers=auth_header(admin_token),
+        )
+
+        assert response.status_code == 200
+
+        dotted_keys = {
+            "provider_name": "llm.provider",
+            "base_url": "llm.base_url",
+            "api_key": "llm.api_key",
+            "model_name": "llm.model_name",
+        }
+
+        result = await test_session.execute(
+            select(SystemConfig).where(SystemConfig.key.in_(dotted_keys.values()))
+        )
+        rows = result.scalars().all()
+        found = {row.key: row.value for row in rows}
+
+        assert found.get(dotted_keys["provider_name"]) == payload["provider_name"]
+        assert found.get(dotted_keys["base_url"]) == payload["base_url"]
+        assert found.get(dotted_keys["api_key"]) == payload["api_key"]
+        assert found.get(dotted_keys["model_name"]) == payload["model_name"]

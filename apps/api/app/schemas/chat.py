@@ -15,6 +15,7 @@ class ConversationInfo(BaseModel):
     student_id: int
     student_name: Optional[str] = None
     title: Optional[str]
+    first_user_message_preview: Optional[str] = None
     prompt_version: Optional[int]
     model_provider: Optional[str]
     model_name: Optional[str]

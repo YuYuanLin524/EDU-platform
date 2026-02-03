@@ -113,12 +113,22 @@ class TestListConversations:
         class_with_student: Class,
     ):
         """Test student can list their conversations."""
-        # First create a conversation
-        await client.post(
+        # Create a conversation and send a message to get AI response
+        create_resp = await client.post(
             "/conversations",
             json={"class_id": class_with_student.id, "title": "Test Conv 1"},
             headers=auth_header(student_token),
         )
+        conv_id = create_resp.json()["id"]
+
+        # Send a message to trigger AI response (conversation only appears in list after AI responds)
+        mock_provider = MockLLMProvider()
+        with patch("app.chat.routes.get_llm_provider", return_value=mock_provider):
+            await client.post(
+                f"/conversations/{conv_id}/messages",
+                json={"content": "Hello"},
+                headers=auth_header(student_token),
+            )
 
         # Now list
         response = await client.get(

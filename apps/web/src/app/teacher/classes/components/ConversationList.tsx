@@ -59,10 +59,10 @@ export function ConversationList({
             <div
               key={conv.id}
               className="p-4 hover:bg-muted cursor-pointer"
-              onClick={() => onSelectConversation(conv.id, conv.title || `对话 #${conv.id}`)}
+              onClick={() => onSelectConversation(conv.id, getConversationTitle(conv))}
             >
               <div className="flex items-center justify-between">
-                <p className="font-medium text-foreground">{conv.title || `对话 #${conv.id}`}</p>
+                <p className="font-medium text-foreground">{getConversationTitle(conv)}</p>
                 <ChevronRight className="text-muted-foreground" size={20} />
               </div>
               <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
@@ -79,3 +79,4 @@ export function ConversationList({
     </div>
   );
 }
+import { getConversationTitle } from "@/lib/chat/conversationTitle";

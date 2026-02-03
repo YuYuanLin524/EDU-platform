@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime
 from typing import List, AsyncGenerator
+import json
 from app.db.base import get_db
 from app.models import (
     User,
@@ -191,6 +192,18 @@ async def list_conversations(
         class_result = await db.execute(select(Class).where(Class.id == conv.class_id))
         class_obj = class_result.scalar_one_or_none()
 
+        # 获取首条用户消息预览（用于无标题时展示）
+        first_user_msg_result = await db.execute(
+            select(Message.content)
+            .where(
+                Message.conversation_id == conv.id,
+                Message.role == MessageRole.USER,
+            )
+            .order_by(Message.created_at.asc())
+            .limit(1)
+        )
+        first_user_message_preview = first_user_msg_result.scalar_one_or_none()
+
         items.append(
             ConversationInfo(
                 id=conv.id,
@@ -199,6 +212,7 @@ async def list_conversations(
                 student_id=conv.student_id,
                 student_name=current_user.display_name or current_user.username,
                 title=conv.title,
+                first_user_message_preview=first_user_message_preview,
                 prompt_version=conv.prompt_version,
                 model_provider=conv.model_provider,
                 model_name=conv.model_name,
@@ -346,9 +360,21 @@ async def send_message(
             await db.delete(user_message)
             await db.delete(conversation)
             await db.commit()
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="AI 服务暂时不可用，请稍后重试",
+            # Return 200 with error message instead of 502 (consistent with subsequent message errors)
+            return SendMessageResponse(
+                user_message=MessageInfo(
+                    id=user_message.id,
+                    role=user_message.role.value,
+                    content=user_message.content,
+                    created_at=user_message.created_at.isoformat() if user_message.created_at else "",
+                ),
+                assistant_message=MessageInfo(
+                    id=0,
+                    role=MessageRole.ASSISTANT.value,
+                    content=f"抱歉，AI 服务暂时不可用，请稍后重试。错误信息：{str(e)}",
+                    created_at=datetime.utcnow().isoformat(),
+                ),
+                policy_flags=policy_flags,
             )
 
         # 保存错误信息作为 AI 回复
@@ -440,6 +466,17 @@ async def stream_message(
     db.add(user_message)
     await db.flush()
 
+    # Create assistant placeholder early so frontend can bind stream to a stable id
+    assistant_message = Message(
+        conversation_id=conversation_id,
+        role=MessageRole.ASSISTANT,
+        content="",
+        created_at=datetime.utcnow(),
+        policy_flags={},
+    )
+    db.add(assistant_message)
+    await db.flush()
+
     has_prior_assistant = any(m.role == MessageRole.ASSISTANT for m in history_messages)
     provider = get_llm_provider()
 
@@ -448,41 +485,75 @@ async def stream_message(
         assistant_content = ""
 
         try:
+            # Send meta event first with stable ids
+            yield "event: meta\n"
+            yield (
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "meta",
+                        "user_message": {
+                            "id": user_message.id,
+                            "role": user_message.role.value,
+                            "content": user_message.content,
+                            "created_at": user_message.created_at.isoformat()
+                            if user_message.created_at
+                            else "",
+                            "token_in": user_message.token_in,
+                            "token_out": user_message.token_out,
+                        },
+                        "assistant_message": {
+                            "id": assistant_message.id,
+                            "role": assistant_message.role.value,
+                            "content": "",
+                            "created_at": assistant_message.created_at.isoformat()
+                            if assistant_message.created_at
+                            else "",
+                            "token_in": assistant_message.token_in,
+                            "token_out": assistant_message.token_out,
+                        },
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n\n"
+            )
+
             async for chunk in provider.chat_stream(chat_messages):
                 assistant_content += chunk
-                yield f"data: {chunk}\n\n"
+                yield "event: delta\n"
+                yield "data: " + json.dumps({"type": "delta", "delta": chunk}, ensure_ascii=False) + "\n\n"
 
-            assistant_message = Message(
-                conversation_id=conversation_id,
-                role=MessageRole.ASSISTANT,
-                content=assistant_content,
-                created_at=datetime.utcnow(),
-                policy_flags=policy_flags,
-            )
-            db.add(assistant_message)
+            assistant_message.content = assistant_content
+            assistant_message.policy_flags = policy_flags
             conversation.last_message_at = datetime.utcnow()
             await db.commit()
-            yield "data: [DONE]\n\n"
+            yield "event: done\n"
+            yield "data: " + json.dumps({"type": "done", "policy_flags": policy_flags}, ensure_ascii=False) + "\n\n"
         except Exception as e:
             policy_flags["error"] = str(e)
             if not has_prior_assistant:
+                await db.delete(assistant_message)
                 await db.delete(user_message)
                 await db.delete(conversation)
                 await db.commit()
-                yield "event: error\ndata: AI 服务暂时不可用，请稍后重试\n\n"
+                yield "event: error\n"
+                yield "data: " + json.dumps(
+                    {"type": "error", "message": "AI 服务暂时不可用，请稍后重试"},
+                    ensure_ascii=False,
+                ) + "\n\n"
                 return
 
-            assistant_message = Message(
-                conversation_id=conversation_id,
-                role=MessageRole.ASSISTANT,
-                content=f"抱歉，AI 服务暂时不可用，请稍后重试。错误信息：{str(e)}",
-                created_at=datetime.utcnow(),
-                policy_flags=policy_flags,
+            assistant_message.content = (
+                f"抱歉，AI 服务暂时不可用，请稍后重试。错误信息：{str(e)}"
             )
-            db.add(assistant_message)
+            assistant_message.policy_flags = policy_flags
             conversation.last_message_at = datetime.utcnow()
             await db.commit()
-            yield "event: error\ndata: AI 服务暂时不可用，请稍后重试\n\n"
+            yield "event: error\n"
+            yield "data: " + json.dumps(
+                {"type": "error", "message": "AI 服务暂时不可用，请稍后重试"},
+                ensure_ascii=False,
+            ) + "\n\n"
 
     return StreamingResponse(
         event_stream(),

@@ -21,7 +21,12 @@ export function AuthForm({
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
-  const { login, isAuthenticated, mustChangePassword, user, changePassword } = useAuthStore();
+  // Use selectors to only subscribe to needed state
+  const login = useAuthStore((s) => s.login);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const mustChangePassword = useAuthStore((s) => s.mustChangePassword);
+  const user = useAuthStore((s) => s.user);
+  const changePassword = useAuthStore((s) => s.changePassword);
 
   const [entry, setEntry] = useState<Entry>(initialEntry);
   const [username, setUsername] = useState("");

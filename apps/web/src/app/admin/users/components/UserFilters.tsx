@@ -53,7 +53,6 @@ export function UserFilters({
             <SelectItem value="all">全部</SelectItem>
             <SelectItem value="student">学生</SelectItem>
             <SelectItem value="teacher">教师</SelectItem>
-            <SelectItem value="admin">管理员</SelectItem>
           </SelectContent>
         </Select>
       </div>

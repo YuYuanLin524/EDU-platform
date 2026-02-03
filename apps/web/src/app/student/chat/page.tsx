@@ -2,178 +2,127 @@
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { formatRelativeTime } from "@/lib/utils";
-import { Plus, Send, MessageSquare } from "lucide-react";
-import { useChatState } from "./hooks/useChatState";
+import { Send, MessageSquare, Lightbulb } from "lucide-react";
+import { useChatContext } from "./ChatContext";
 import { MessageBubble } from "./components";
+import { getConversationTitle } from "@/lib/chat/conversationTitle";
 
 export default function StudentChatPage() {
+  const chatState = useChatContext();
+  if (!chatState) return null;
+
   const {
-    conversations,
     messages,
-    classes,
-    conversationsLoading,
     messagesLoading,
     selectedConversation,
-    setSelectedConversation,
-    selectedClassId,
-    setSelectedClassId,
     messageInput,
     setMessageInput,
     messagesEndRef,
     sendMessageMutation,
     handleSendMessage,
-    handleNewConversation,
-  } = useChatState();
+    isStreaming,
+  } = chatState;
 
   return (
-    <div className="flex h-full">
-      {/* Conversation List Sidebar */}
-      <div className="w-80 border-r border-border bg-card flex flex-col">
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-foreground">对话列表</h2>
-            <Button size="sm" onClick={handleNewConversation} disabled={classes.length === 0}>
-              <Plus size={16} className="mr-1" />
-              新对话
-            </Button>
-          </div>
-          {classes.length > 1 && (
-            <Select
-              value={selectedClassId !== null ? String(selectedClassId) : ""}
-              onValueChange={(value) => setSelectedClassId(value ? Number(value) : null)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="全部班级" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">全部班级</SelectItem>
-                {classes.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {conversationsLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            </div>
-          ) : conversations.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground text-sm">
-              <MessageSquare className="mx-auto mb-2 text-muted-foreground" size={32} />
-              <p>暂无对话</p>
-              <p className="text-xs mt-1">点击"新对话"开始学习</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {conversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => setSelectedConversation(conv)}
-                  className={cn(
-                    "w-full p-4 text-left hover:bg-muted transition-colors",
-                    selectedConversation?.id === conv.id && "bg-primary/10"
-                  )}
-                >
-                  <div className="font-medium text-sm text-foreground truncate">
-                    {conv.title || `对话 #${conv.id}`}
-                  </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-muted-foreground">{conv.class_name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {conv.last_message_at
-                        ? formatRelativeTime(conv.last_message_at)
-                        : formatRelativeTime(conv.created_at)}
-                    </span>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {conv.message_count} 条消息
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
+    <div className="flex h-full relative">
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col bg-muted">
+      <div className="flex-1 flex flex-col">
         {selectedConversation ? (
           <>
-            {/* Chat Header */}
-            <div className="p-4 bg-card border-b border-border">
-              <h3 className="font-semibold text-foreground">
-                {selectedConversation.title || `对话 #${selectedConversation.id}`}
-              </h3>
-              <p className="text-sm text-muted-foreground">{selectedConversation.class_name}</p>
+            {/* Chat Header - Glass morphism */}
+            <div className="glass border-b border-border p-6 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-md animate-gentle-pulse">
+                  <Lightbulb className="w-7 h-7 text-primary-foreground" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-foreground">
+                    {getConversationTitle(selectedConversation)}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedConversation.class_name} · 苏格拉底式引导
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  在线
+                </div>
+              </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messagesLoading ? (
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {messages.length === 0 && messagesLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="text-center text-muted-foreground py-12">
+                  <div className="w-20 h-20 rounded-full bg-secondary mx-auto mb-4 flex items-center justify-center">
+                    <Lightbulb className="w-10 h-10 text-muted-foreground" />
+                  </div>
                   <p className="text-lg mb-2">开始你的编程学习之旅</p>
                   <p className="text-sm">输入你的编程问题，AI助手会通过提问引导你思考</p>
                 </div>
               ) : (
-                messages.map((msg) => <MessageBubble key={msg.id} message={msg} />)
+                messages.map((msg, index) => (
+                  <MessageBubble
+                    key={msg.id}
+                    message={msg}
+                    index={index}
+                  />
+                ))
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
-            <form onSubmit={handleSendMessage} className="p-4 bg-card border-t border-border">
-              <div className="flex gap-3">
-                <Textarea
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="输入你的问题..."
-                  className="flex-1 resize-none"
-                  rows={2}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(e);
-                    }
-                  }}
-                />
-                <Button
-                  type="submit"
-                  disabled={!messageInput.trim() || sendMessageMutation.isPending}
-                  loading={sendMessageMutation.isPending}
-                  className="self-end"
-                >
-                  <Send size={18} />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                按 Enter 发送，Shift + Enter 换行
-              </p>
-            </form>
+            {/* Input Area - Glass morphism */}
+            <div className="p-4">
+              <form
+                onSubmit={handleSendMessage}
+                className="glass border border-border rounded-xl p-4 shadow-lg input-focus-ring"
+              >
+                <div className="flex gap-3">
+                  <div className="flex-1 bg-secondary/50 rounded-lg border border-border focus-within:border-primary/30 transition-colors">
+                    <Textarea
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      placeholder="输入你的问题..."
+                      className="flex-1 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                      rows={2}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={!messageInput.trim() || sendMessageMutation.isPending}
+                    loading={sendMessageMutation.isPending}
+                    className="self-end h-10 px-4"
+                  >
+                    发送
+                    <Send size={16} className="ml-2" />
+                  </Button>
+                </div>
+                <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
+                  <span>{isStreaming ? "AI 回复生成中..." : "按 Enter 发送，Shift + Enter 换行"}</span>
+                  <span>SocraticCode AI</span>
+                </div>
+              </form>
+            </div>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
-              <MessageSquare className="mx-auto mb-4 text-muted-foreground/40" size={64} />
-              <p className="text-lg">选择一个对话或创建新对话</p>
-              <p className="text-sm mt-2">AI助手会通过苏格拉底式提问帮助你学习编程</p>
+              <div className="w-24 h-24 rounded-full bg-secondary mx-auto mb-6 flex items-center justify-center">
+                <MessageSquare className="text-muted-foreground/40" size={48} />
+              </div>
+              <p className="text-xl font-medium mb-2">选择一个对话或创建新对话</p>
+              <p className="text-sm">AI助手会通过苏格拉底式提问帮助你学习编程</p>
             </div>
           </div>
         )}

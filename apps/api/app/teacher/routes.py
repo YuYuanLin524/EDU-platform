@@ -168,6 +168,17 @@ async def get_student_conversations(
         )
         msg_count = msg_count_result.scalar() or 0
 
+        first_user_msg_result = await db.execute(
+            select(Message.content)
+            .where(
+                Message.conversation_id == conv.id,
+                Message.role == MessageRole.USER,
+            )
+            .order_by(Message.created_at.asc())
+            .limit(1)
+        )
+        first_user_message_preview = first_user_msg_result.scalar_one_or_none()
+
         items.append(
             ConversationInfo(
                 id=conv.id,
@@ -178,6 +189,7 @@ async def get_student_conversations(
                 if student
                 else None,
                 title=conv.title,
+                first_user_message_preview=first_user_message_preview,
                 prompt_version=conv.prompt_version,
                 model_provider=conv.model_provider,
                 model_name=conv.model_name,

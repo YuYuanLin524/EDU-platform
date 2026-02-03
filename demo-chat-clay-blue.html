@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>黏土卡通风格 - 薄荷蓝教育界面</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'clay-primary': '#06B6D4',
+                        'clay-dark': '#0891B2',
+                        'clay-light': '#67E8F9',
+                        'clay-pale': '#CFFAFE',
+                        'clay-bg': '#F0F9FF',
+                        'clay-surface': '#E0F2FE',
+                        'clay-coral': '#FB7185',
+                        'clay-yellow': '#FDE047',
+                        'clay-text': '#164E63',
+                        'clay-muted': '#0E7490',
+                    },
+                    fontFamily: {
+                        sans: ['Nunito', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        'clay': '1.5rem',
+                        'clay-lg': '2rem',
+                        'clay-xl': '2.5rem',
+                    },
+                    boxShadow: {
+                        'clay': '0 8px 30px rgba(6, 182, 212, 0.15), 0 4px 10px rgba(6, 182, 212, 0.1)',
+                        'clay-hover': '0 12px 40px rgba(6, 182, 212, 0.2), 0 6px 15px rgba(6, 182, 212, 0.15)',
+                        'clay-inset': 'inset 0 2px 4px rgba(255, 255, 255, 0.8), inset 0 -2px 4px rgba(6, 182, 212, 0.1)',
+                        'clay-card': '0 6px 20px rgba(6, 182, 212, 0.12), 0 2px 8px rgba(6, 182, 212, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Nunito', 'Noto Sans SC', system-ui, sans-serif;
+            background: linear-gradient(180deg, #F0F9FF 0%, #E0F2FE 50%, #F0F9FF 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* 黏土质感按钮 */
+        .btn-clay {
+            background: linear-gradient(135deg, #06B6D4 0%, #0891B2 100%);
+            border-radius: 1.5rem;
+            box-shadow: 
+                0 6px 20px rgba(6, 182, 212, 0.3),
+                0 2px 8px rgba(6, 182, 212, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        .btn-clay:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 
+                0 10px 30px rgba(6, 182, 212, 0.4),
+                0 4px 12px rgba(6, 182, 212, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+        
+        .btn-clay:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+        
+        /* 黏土卡片 */
+        .card-clay {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 1.5rem;
+            box-shadow: 
+                0 6px 20px rgba(6, 182, 212, 0.12),
+                0 2px 8px rgba(6, 182, 212, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            border: 2px solid rgba(6, 182, 212, 0.1);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        .card-clay:hover {
+            transform: translateY(-4px);
+            box-shadow: 
+                0 12px 35px rgba(6, 182, 212, 0.18),
+                0 4px 12px rgba(6, 182, 212, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+        
+        .card-clay.active {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(207, 250, 254, 0.3) 100%);
+            border-color: rgba(6, 182, 212, 0.3);
+            box-shadow: 
+                0 8px 25px rgba(6, 182, 212, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+        
+        /* 消息气泡 - AI */
+        .bubble-ai {
+            background: linear-gradient(135deg, #E0F2FE 0%, #F0F9FF 100%);
+            border: 2px solid rgba(6, 182, 212, 0.2);
+            border-radius: 2rem 2rem 2rem 0.5rem;
+            box-shadow: 
+                0 4px 15px rgba(6, 182, 212, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+        
+        /* 消息气泡 - 用户 */
+        .bubble-user {
+            background: linear-gradient(135deg, #06B6D4 0%, #0891B2 100%);
+            border-radius: 2rem 2rem 0.5rem 2rem;
+            box-shadow: 
+                0 6px 20px rgba(6, 182, 212, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+        
+        /* 导航栏黏土效果 */
+        .nav-clay {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 2rem;
+            box-shadow: 
+                0 8px 30px rgba(6, 182, 212, 0.15),
+                0 4px 12px rgba(6, 182, 212, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            border: 2px solid rgba(6, 182, 212, 0.15);
+        }
+        
+        /* 输入框黏土效果 */
+        .input-clay {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid rgba(6, 182, 212, 0.2);
+            border-radius: 1.5rem;
+            box-shadow: 
+                inset 0 2px 8px rgba(6, 182, 212, 0.05),
+                0 2px 8px rgba(6, 182, 212, 0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .input-clay:focus {
+            border-color: rgba(6, 182, 212, 0.4);
+            box-shadow: 
+                inset 0 2px 8px rgba(6, 182, 212, 0.08),
+                0 4px 15px rgba(6, 182, 212, 0.15);
+            outline: none;
+        }
+        
+        /* 动画 */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(2deg); }
+        }
+        
+        @keyframes blink {
+            0%, 90%, 100% { transform: scaleY(1); }
+            95% { transform: scaleY(0.1); }
+        }
+        
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        
+        @keyframes wave {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-10deg); }
+            75% { transform: rotate(10deg); }
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-float {
+            animation: float 4s ease-in-out infinite;
+        }
+        
+        .animate-blink {
+            animation: blink 4s ease-in-out infinite;
+        }
+        
+        .animate-twinkle {
+            animation: twinkle 2s ease-in-out infinite;
+        }
+        
+        .animate-wave {
+            animation: wave 2s ease-in-out infinite;
+        }
+        
+        .message-enter {
+            animation: slideInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        
+        /* 装饰元素 */
+        .cloud {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(207, 250, 254, 0.6) 100%);
+            border-radius: 50px;
+            box-shadow: 
+                0 8px 25px rgba(6, 182, 212, 0.1),
+                inset 0 2px 4px rgba(255, 255, 255, 0.8);
+        }
+        
+        .star {
+            color: #FDE047;
+            filter: drop-shadow(0 2px 4px rgba(253, 224, 71, 0.4));
+        }
+        
+        /* AI 导师头像 */
+        .ai-avatar {
+            background: linear-gradient(135deg, #06B6D4 0%, #67E8F9 50%, #06B6D4 100%);
+            border-radius: 50%;
+            box-shadow: 
+                0 8px 30px rgba(6, 182, 212, 0.4),
+                inset 0 -4px 10px rgba(8, 145, 178, 0.3),
+                inset 0 4px 10px rgba(103, 232, 249, 0.5);
+            border: 4px solid rgba(255, 255, 255, 0.6);
+        }
+        
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(6, 182, 212, 0.3);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(6, 182, 212, 0.5);
+        }
+        
+        /* 表情符号动画 */
+        .emoji-bounce {
+            display: inline-block;
+            animation: bounce 1s ease infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+    </style>
+</head>
+<body class="text-clay-text relative">
+    <!-- 漂浮装饰元素 -->
+    <div class="fixed top-20 left-10 cloud px-6 py-3 animate-float" style="animation-delay: 0s;">
+        <span class="text-2xl">☁️</span>
+    </div>
+    <div class="fixed top-40 left-20 cloud px-4 py-2 animate-float" style="animation-delay: 1s; opacity: 0.7;">
+        <span class="text-xl">☁️</span>
+    </div>
+    <div class="fixed bottom-32 left-16 star text-3xl animate-twinkle" style="animation-delay: 0.5s;">⭐</div>
+    <div class="fixed top-32 right-20 star text-2xl animate-twinkle" style="animation-delay: 1.2s;">✨</div>
+    <div class="fixed bottom-20 right-32 cloud px-5 py-3 animate-float" style="animation-delay: 2s;">
+        <span class="text-2xl">☁️</span>
+    </div>
+    <div class="fixed top-60 right-10 star text-2xl animate-twinkle" style="animation-delay: 0.8s;">🌟</div>
+
+    <!-- 导航栏 -->
+    <nav class="fixed top-6 left-0 right-0 z-50 px-4">
+        <div class="max-w-6xl mx-auto">
+            <div class="nav-clay px-6 py-3 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <!-- Logo - 黏土风格小蓝 -->
+                    <div class="w-12 h-12 ai-avatar flex items-center justify-center relative">
+                        <div class="flex flex-col items-center">
+                            <div class="flex gap-1">
+                                <div class="w-2 h-2 bg-white rounded-full animate-blink"></div>
+                                <div class="w-2 h-2 bg-white rounded-full animate-blink" style="animation-delay: 0.1s;"></div>
+                            </div>
+                            <div class="w-4 h-2 bg-white/80 rounded-full mt-1"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-xl font-bold text-clay-text">SocraticCode</span>
+                        <span class="text-xs text-clay-muted block">黏土学习伙伴</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm text-clay-muted font-medium">👋 你好，同学！</span>
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-clay-coral to-pink-400 flex items-center justify-center shadow-lg border-2 border-white">
+                        <span class="text-white font-bold">张</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主体内容 -->
+    <div class="max-w-6xl mx-auto pt-28 pb-6 px-4 flex gap-6 h-screen">
+        <!-- 侧边栏 - 对话列表 -->
+        <aside class="w-72 flex flex-col">
+            <div class="card-clay p-4 mb-4">
+                <button class="btn-clay w-full text-white px-4 py-3 font-bold flex items-center justify-center gap-2">
+                    <span class="text-xl">➕</span>
+                    新建对话
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto space-y-3 pr-2">
+                <div class="text-xs font-bold text-clay-muted uppercase tracking-wider mb-2 px-2">📚 历史对话</div>
+                
+                <!-- 活跃的对话卡片 -->
+                <div class="card-clay active p-4 cursor-pointer">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-clay-yellow to-amber-400 flex items-center justify-center shadow-md text-lg">
+                            📖
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <div class="w-2 h-2 rounded-full bg-clay-primary animate-pulse"></div>
+                                <h3 class="font-bold text-sm truncate">Python 循环结构</h3>
+                            </div>
+                            <p class="text-xs text-clay-muted">🕐 2小时前 · 💬 12条</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 其他对话卡片 -->
+                <div class="card-clay p-4 cursor-pointer">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-clay-coral to-pink-400 flex items-center justify-center shadow-md text-lg">
+                            🎯
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <div class="w-2 h-2 rounded-full bg-clay-muted"></div>
+                                <h3 class="font-bold text-sm truncate">函数定义与调用</h3>
+                            </div>
+                            <p class="text-xs text-clay-muted">🕐 昨天 · 💬 8条</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-clay p-4 cursor-pointer">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-400 flex items-center justify-center shadow-md text-lg">
+                            🔢
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <div class="w-2 h-2 rounded-full bg-clay-muted"></div>
+                                <h3 class="font-bold text-sm truncate">变量与数据类型</h3>
+                            </div>
+                            <p class="text-xs text-clay-muted">🕐 3天前 · 💬 15条</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-clay p-4 cursor-pointer">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-400 flex items-center justify-center shadow-md text-lg">
+                            🌿
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <div class="w-2 h-2 rounded-full bg-clay-muted"></div>
+                                <h3 class="font-bold text-sm truncate">条件语句 if-else</h3>
+                            </div>
+                            <p class="text-xs text-clay-muted">🕐 5天前 · 💬 6条</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 聊天区域 -->
+        <main class="flex-1 flex flex-col">
+            <!-- 聊天头部 - AI导师信息 -->
+            <div class="card-clay p-5 mb-4">
+                <div class="flex items-center gap-4">
+                    <!-- AI导师头像 -->
+                    <div class="relative">
+                        <div class="w-16 h-16 ai-avatar flex items-center justify-center animate-float">
+                            <div class="flex flex-col items-center">
+                                <div class="flex gap-1.5">
+                                    <div class="w-3 h-3 bg-white rounded-full animate-blink"></div>
+                                    <div class="w-3 h-3 bg-white rounded-full animate-blink" style="animation-delay: 0.1s;"></div>
+                                </div>
+                                <div class="w-6 h-2.5 bg-white/80 rounded-full mt-1"></div>
+                            </div>
+                        </div>
+                        <!-- 天线 -->
+                        <div class="absolute -top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
+                            <div class="w-2 h-2 rounded-full bg-clay-yellow animate-twinkle"></div>
+                            <div class="w-0.5 h-3 bg-clay-primary"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h2 class="text-xl font-bold text-clay-text">🤖 小蓝导师</h2>
+                            <span class="text-xs bg-clay-pale text-clay-dark px-2 py-1 rounded-full font-bold">AI</span>
+                        </div>
+                        <p class="text-sm text-clay-muted">我会用有趣的方式教你编程哦～ 😊</p>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 text-xs bg-clay-pale px-3 py-2 rounded-full border border-clay-primary/20">
+                        <span class="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse shadow-sm"></span>
+                        <span class="text-clay-dark font-bold">在线</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 消息列表 -->
+            <div class="flex-1 overflow-y-auto space-y-4 pr-2 pb-4" id="message-container">
+                <!-- AI消息 -->
+                <div class="flex gap-3 message-enter" style="animation-delay: 0.1s;">
+                    <div class="w-10 h-10 ai-avatar flex-shrink-0 flex items-center justify-center">
+                        <div class="flex flex-col items-center scale-75">
+                            <div class="flex gap-1">
+                                <div class="w-2 h-2 bg-white rounded-full animate-blink"></div>
+                                <div class="w-2 h-2 bg-white rounded-full animate-blink" style="animation-delay: 0.1s;"></div>
+                            </div>
+                            <div class="w-4 h-1.5 bg-white/80 rounded-full mt-0.5"></div>
+                        </div>
+                    </div>
+                    <div class="flex-1 max-w-[80%]">
+                        <div class="bubble-ai p-4">
+                            <p class="text-sm leading-relaxed">
+                                嗨～你好呀！👋 我是小蓝，你的编程学习伙伴！<br><br>
+                                今天我们要学习的是 <span class="font-bold text-clay-primary">for 循环</span> 🔄<br><br>
+                                想象一下，如果你要让电脑说10次"你好"，你会怎么做呢？🤔
+                            </p>
+                        </div>
+                        <span class="text-xs text-clay-muted mt-1 block">刚刚</span>
+                    </div>
+                </div>
+
+                <!-- 用户消息 -->
+                <div class="flex gap-3 flex-row-reverse message-enter" style="animation-delay: 0.3s;">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-clay-coral to-pink-400 flex-shrink-0 flex items-center justify-center shadow-lg border-2 border-white">
+                        <span class="text-white font-bold text-sm">张</span>
+                    </div>
+                    <div class="flex-1 max-w-[80%] flex flex-col items-end">
+                        <div class="bubble-user p-4">
+                            <p class="text-sm leading-relaxed">
+                                嗯...复制粘贴10次？📝
+                            </p>
+                        </div>
+                        <span class="text-xs text-clay-muted mt-1">2分钟前</span>
+                    </div>
+                </div>
+
+                <!-- AI消息 -->
+                <div class="flex gap-3 message-enter" style="animation-delay: 0.5s;">
+                    <div class="w-10 h-10 ai-avatar flex-shrink-0 flex items-center justify-center">
+                        <div class="flex flex-col items-center scale-75">
+                            <div class="flex gap-1">
+                                <div class="w-2 h-2 bg-white rounded-full animate-blink"></div>
+                                <div class="w-2 h-2 bg-white rounded-full animate-blink" style="animation-delay: 0.1s;"></div>
+                            </div>
+                            <div class="w-4 h-1.5 bg-white/80 rounded-full mt-0.5"></div>
+                        </div>
+                    </div>
+                    <div class="flex-1 max-w-[80%]">
+                        <div class="bubble-ai p-4">
+                            <p class="text-sm leading-relaxed">
+                                哈哈，复制粘贴确实可以！<span class="emoji-bounce">😄</span><br><br>
+                                但是如果是1000次呢？或者次数是用户输入的数字？<br><br>
+                                这时候就需要我们的 <span class="font-bold text-clay-primary">for 循环</span> 出场啦！✨<br><br>
+                                想象一下它是一个勤劳的小工人，可以帮你重复做同样的事情～ 💪
+                            </p>
+                        </div>
+                        <span class="text-xs text-clay-muted mt-1 block">刚刚</span>
+                    </div>
+                </div>
+
+                <!-- 用户消息 -->
+                <div class="flex gap-3 flex-row-reverse message-enter" style="animation-delay: 0.7s;">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-clay-coral to-pink-400 flex-shrink-0 flex items-center justify-center shadow-lg border-2 border-white">
+                        <span class="text-white font-bold text-sm">张</span>
+                    </div>
+                    <div class="flex-1 max-w-[80%] flex flex-col items-end">
+                        <div class="bubble-user p-4">
+                            <p class="text-sm leading-relaxed">
+                                听起来好方便！那怎么用呢？🤩
+                            </p>
+                        </div>
+                        <span class="text-xs text-clay-muted mt-1">1分钟前</span>
+                    </div>
+                </div>
+
+                <!-- AI消息 - 代码示例 -->
+                <div class="flex gap-3 message-enter" style="animation-delay: 0.9s;">
+                    <div class="w-10 h-10 ai-avatar flex-shrink-0 flex items-center justify-center">
+                        <div class="flex flex-col items-center scale-75">
+                            <div class="flex gap-1">
+                                <div class="w-2 h-2 bg-white rounded-full animate-blink"></div>
+                                <div class="w-2 h-2 bg-white rounded-full animate-blink" style="animation-delay: 0.1s;"></div>
+                            </div>
+                            <div class="w-4 h-1.5 bg-white/80 rounded-full mt-0.5"></div>
+                        </div>
+                    </div>
+                    <div class="flex-1 max-w-[80%]">
+                        <div class="bubble-ai p-4">
+                            <p class="text-sm leading-relaxed mb-3">
+                                看这里！很简单的～ <span class="emoji-bounce">👇</span>
+                            </p>
+                            <div class="bg-clay-text rounded-xl p-3 font-mono text-xs text-white shadow-inner">
+                                <span class="text-clay-coral">for</span> i <span class="text-clay-coral">in</span> <span class="text-clay-yellow">range</span>(<span class="text-clay-light">10</span>):<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-clay-light">print</span>(<span class="text-green-400">"你好！"</span>)
+                            </div>
+                            <p class="text-sm leading-relaxed mt-3">
+                                这样就会自动打印10次"你好！"啦！🎉<br>
+                                想试试看吗？
+                            </p>
+                        </div>
+                        <span class="text-xs text-clay-muted mt-1 block">刚刚</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 输入框 -->
+            <div class="card-clay p-4 mt-4">
+                <div class="flex gap-3">
+                    <div class="flex-1">
+                        <textarea 
+                            class="input-clay w-full px-4 py-3 text-sm resize-none"
+                            rows="2"
+                            placeholder="输入你的问题或想法... 💭"
+                        ></textarea>
+                    </div>
+                    <button class="btn-clay text-white px-6 font-bold flex items-center gap-2 self-end h-12">
+                        <span>发送</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="mt-2 flex justify-between items-center text-xs text-clay-muted px-2">
+                    <span>💡 按 Enter 发送，Shift+Enter 换行</span>
+                    <span class="flex items-center gap-1">
+                        <span>🤖</span>
+                        <span>SocraticCode AI</span>
+                    </span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 滚动到底部
+        const messageContainer = document.getElementById('message-container');
+        messageContainer.scrollTop = messageContainer.scrollHeight;
+        
+        // 输入框交互
+        const textarea = document.querySelector('textarea');
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                // 这里可以添加发送消息的逻辑
+            }
+        });
+        
+        // 为所有卡片添加点击效果
+        document.querySelectorAll('.card-clay').forEach(card => {
+            card.addEventListener('click', function() {
+                if (!this.classList.contains('active')) {
+                    document.querySelectorAll('.card-clay.active').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

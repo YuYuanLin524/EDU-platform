@@ -46,7 +46,10 @@ export const classesApi = {
 
   // Teacher-specific class endpoints
   async getClassStudents(classId: number): Promise<StudentInClass[]> {
-    const response = await client.get<StudentInClass[]>(`/teacher/classes/${classId}/students`);
-    return response.data;
+    // Backend returns { students: [...] }
+    const response = await client.get<{ students: StudentInClass[] }>(
+      `/teacher/classes/${classId}/students`
+    );
+    return response.data?.students || [];
   },
 };

@@ -10,6 +10,7 @@ import { authApi } from "./auth";
 import { usersApi } from "./users";
 import { classesApi } from "./classes";
 import { chatApi } from "./chat";
+import { settingsApi } from "./settings";
 
 // Unified API object for backward compatibility
 // This maintains the same interface as the original api.ts
@@ -62,7 +63,12 @@ export const api = {
   deleteUser: usersApi.deleteUser,
   setTeacherClasses: usersApi.setTeacherClasses,
   setStudentClass: usersApi.setStudentClass,
+
+  // Settings endpoints
+  getLLMConfig: settingsApi.getLLMConfig,
+  updateLLMConfig: settingsApi.updateLLMConfig,
+  testLLMConnection: settingsApi.testLLMConnection,
 };
 
 // Also export individual API modules for direct usage
-export { authApi, usersApi, classesApi, chatApi };
+export { authApi, usersApi, classesApi, chatApi, settingsApi };

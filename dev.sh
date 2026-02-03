@@ -152,7 +152,7 @@ start_api() {
 
   (
     cd "$API_DIR"
-    nohup .venv/bin/python -m uvicorn app.main:app --reload --host 127.0.0.1 --port "$api_port" > uvicorn.log 2>&1 &
+    nohup .venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port "$api_port" > uvicorn.log 2>&1 &
     echo $! > "$pid_file"
   )
   sleep 0.5
@@ -217,6 +217,7 @@ start_web() {
       cd "$WEB_DIR"
       export NEXT_PUBLIC_API_URL="$api_url"
       export PORT="$web_port"
+      export HOSTNAME="0.0.0.0"
       nohup npm run dev > nextjs.log 2>&1 &
       echo $! > "$pid_file"
     )
@@ -229,6 +230,7 @@ start_web() {
         cd "$WEB_DIR"
         export NEXT_PUBLIC_API_URL="$api_url"
         export PORT="$web_port"
+        export HOSTNAME="0.0.0.0"
         nohup npm run dev > nextjs.log 2>&1 &
         echo $! > "$pid_file"
       )
@@ -246,6 +248,7 @@ start_web() {
       cd "$WEB_DIR"
       export NEXT_PUBLIC_API_URL="$api_url"
       export PORT="$web_port"
+      export HOSTNAME="0.0.0.0"
       nohup pnpm dev > nextjs.log 2>&1 &
       echo $! > "$pid_file"
     )
@@ -258,6 +261,7 @@ start_web() {
         cd "$WEB_DIR"
         export NEXT_PUBLIC_API_URL="$api_url"
         export PORT="$web_port"
+        export HOSTNAME="0.0.0.0"
         nohup pnpm dev > nextjs.log 2>&1 &
         echo $! > "$pid_file"
       )
