@@ -30,6 +30,41 @@ function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 }
 
+function getSelectedConversationStorageKey(userId: number | undefined): string {
+  return `student-chat:selected-conversation:${userId ?? "anonymous"}`;
+}
+
+function readStoredConversationId(userId: number | undefined): number | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const value = localStorage.getItem(getSelectedConversationStorageKey(userId));
+  if (!value) {
+    return null;
+  }
+
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function writeStoredConversationId(
+  userId: number | undefined,
+  conversationId: number | null
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const storageKey = getSelectedConversationStorageKey(userId);
+  if (conversationId === null) {
+    localStorage.removeItem(storageKey);
+    return;
+  }
+
+  localStorage.setItem(storageKey, String(conversationId));
+}
+
 export function useChatState() {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -38,8 +73,21 @@ export function useChatState() {
   const [messageInput, setMessageInput] = useState("");
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const [streamingMessageId, setStreamingMessageId] = useState<number | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollRef = useRef(true);
   const tempIdRef = useRef(-1);
+
+  const handleMessagesScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    shouldAutoScrollRef.current = distanceFromBottom < 80;
+  };
 
   const nextTempId = () => {
     tempIdRef.current -= 1;
@@ -255,6 +303,10 @@ export function useChatState() {
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
+    if (!shouldAutoScrollRef.current) {
+      return;
+    }
+
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [localMessages.length]);
 
@@ -264,6 +316,40 @@ export function useChatState() {
       setSelectedClassId(classesData.items[0].id);
     }
   }, [classesData, selectedClassId]);
+
+  // Keep selected conversation in sync with latest list and restore from localStorage.
+  useEffect(() => {
+    const items = conversationsData?.items ?? [];
+
+    if (items.length === 0) {
+      setSelectedConversation(null);
+      return;
+    }
+
+    setSelectedConversation((prev) => {
+      if (prev) {
+        const matchedCurrent = items.find((item) => item.id === prev.id);
+        if (matchedCurrent) {
+          return matchedCurrent;
+        }
+      }
+
+      const storedId = readStoredConversationId(user?.id);
+      if (storedId !== null) {
+        const matchedStored = items.find((item) => item.id === storedId);
+        if (matchedStored) {
+          return matchedStored;
+        }
+      }
+
+      return items[0];
+    });
+  }, [conversationsData?.items, user?.id]);
+
+  // Persist selection so refresh can restore the last opened conversation.
+  useEffect(() => {
+    writeStoredConversationId(user?.id, selectedConversation?.id ?? null);
+  }, [user?.id, selectedConversation?.id]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,6 +379,7 @@ export function useChatState() {
       __hasDelta: false,
     };
 
+    shouldAutoScrollRef.current = true;
     setLocalMessages((prev) => [...prev, optimisticUserMessage, optimisticAssistantMessage]);
     setMessageInput("");
 
@@ -342,7 +429,9 @@ export function useChatState() {
     setMessageInput,
 
     // Refs
+    messagesContainerRef,
     messagesEndRef,
+    handleMessagesScroll,
 
     // Mutations
     sendMessageMutation,
