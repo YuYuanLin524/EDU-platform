@@ -3,7 +3,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { api } from "@/lib/api";
-import type { UserStatus, ImportResponse } from "../types";
+import { toast } from "sonner";
+import type { UserStatus } from "../types";
 
 function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
@@ -47,18 +48,22 @@ export function useUserMutations(
       onSuccess?.();
     },
     onError: (error) => {
-      alert("更新失败: " + (error as Error).message);
+      toast.error("更新失败", {
+        description: error instanceof Error ? error.message : "未知错误",
+      });
     },
   });
 
   const resetPasswordMutation = useMutation({
     mutationFn: (params: { userId: number; newPassword?: string }) =>
       api.resetUserPassword(params.userId, params.newPassword),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
     },
     onError: (error) => {
-      alert("重置密码失败: " + (error as Error).message);
+      toast.error("重置密码失败", {
+        description: error instanceof Error ? error.message : "未知错误",
+      });
     },
   });
 
@@ -66,10 +71,12 @@ export function useUserMutations(
     mutationFn: (userId: number) => api.deleteUser(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
-      alert("删除成功");
+      toast.success("删除成功");
     },
     onError: (error) => {
-      alert("删除失败: " + getErrorMessage(error));
+      toast.error("删除失败", {
+        description: getErrorMessage(error),
+      });
     },
   });
 
@@ -81,7 +88,9 @@ export function useUserMutations(
       onSuccess?.();
     },
     onError: (error) => {
-      alert("更新教师班级失败: " + getErrorMessage(error));
+      toast.error("更新教师班级失败", {
+        description: getErrorMessage(error),
+      });
     },
   });
 
@@ -94,7 +103,9 @@ export function useUserMutations(
       onSuccess?.();
     },
     onError: (error) => {
-      alert("调整班级失败: " + getErrorMessage(error));
+      toast.error("调整班级失败", {
+        description: getErrorMessage(error),
+      });
     },
   });
 
@@ -111,8 +122,9 @@ export function useUserMutations(
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
+      toast.success("已复制到剪贴板");
     } catch {
-      alert("复制失败，请手动复制");
+      toast.error("复制失败，请手动复制");
     }
   };
 

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import type { UserToImport, ImportResponse, UserRole, ClassInfo } from "../types";
 
 interface UseUserImportReturn {
@@ -44,8 +45,6 @@ interface UseUserImportReturn {
 }
 
 export function useUserImport(): UseUserImportReturn {
-  const queryClient = useQueryClient();
-  
   const [importMethod, setImportMethod] = useState<"form" | "json">("form");
   const [jsonInput, setJsonInput] = useState("");
   const [formUsers, setFormUsers] = useState<UserToImport[]>([
@@ -91,7 +90,9 @@ export function useUserImport(): UseUserImportReturn {
       setJsonInput("");
     },
     onError: (error) => {
-      alert("导入失败: " + (error as Error).message);
+      toast.error("导入失败", {
+        description: error instanceof Error ? error.message : "未知错误",
+      });
     },
   });
 
@@ -120,12 +121,12 @@ export function useUserImport(): UseUserImportReturn {
   const handleFormSubmit = () => {
     const validUsers = formUsers.filter((u) => u.username.trim());
     if (validUsers.length === 0) {
-      alert("请至少添加一个有效用户");
+      toast.error("请至少添加一个有效用户");
       return;
     }
 
     if (classes.length === 0 && validUsers.some((u) => u.role === "student")) {
-      alert("尚未创建班级，无法创建学生账户。请先创建班级。");
+      toast.error("尚未创建班级，无法创建学生账户。请先创建班级。");
       return;
     }
 
@@ -133,7 +134,7 @@ export function useUserImport(): UseUserImportReturn {
       (u) => u.role === "student" && !String(u.class_name || "").trim()
     );
     if (studentsWithoutClass.length > 0) {
-      alert("学生账户必须选择班级后才能创建");
+      toast.error("学生账户必须选择班级后才能创建");
       return;
     }
 
@@ -149,7 +150,7 @@ export function useUserImport(): UseUserImportReturn {
     try {
       const users = JSON.parse(jsonInput);
       if (!Array.isArray(users)) {
-        alert("JSON格式错误：需要一个数组");
+        toast.error("JSON 格式错误：需要一个数组");
         return;
       }
       const normalizedUsers: UserToImport[] = users
@@ -166,30 +167,30 @@ export function useUserImport(): UseUserImportReturn {
         .filter((u) => u.username);
 
       if (normalizedUsers.length === 0) {
-        alert("请至少提供一个有效用户");
+        toast.error("请至少提供一个有效用户");
         return;
       }
 
       const invalidRole = normalizedUsers.find((u) => u.role !== "student" && u.role !== "teacher");
       if (invalidRole) {
-        alert("JSON 中存在无效角色（仅支持 student/teacher）");
+        toast.error("JSON 中存在无效角色（仅支持 student/teacher）");
         return;
       }
 
       if (classes.length === 0 && normalizedUsers.some((u) => u.role === "student")) {
-        alert("尚未创建班级，无法导入学生账户。请先创建班级。");
+        toast.error("尚未创建班级，无法导入学生账户。请先创建班级。");
         return;
       }
 
       const missingClass = normalizedUsers.filter((u) => u.role === "student" && !u.class_name);
       if (missingClass.length > 0) {
-        alert("JSON 导入：学生账户必须提供 class_name");
+        toast.error("JSON 导入：学生账户必须提供 class_name");
         return;
       }
 
       importMutation.mutate(normalizedUsers);
     } catch {
-      alert("JSON解析失败，请检查格式");
+      toast.error("JSON 解析失败，请检查格式");
     }
   };
 

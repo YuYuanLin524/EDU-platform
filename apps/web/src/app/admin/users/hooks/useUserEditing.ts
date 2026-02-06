@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import type { AdminUserListItem, UserStatus, ClassInfo } from "../types";
 
 interface UseUserEditingReturn {
@@ -111,7 +112,7 @@ export function useUserEditing(): UseUserEditingReturn {
   const openStudentClass = useCallback((user: AdminUserListItem, availableClasses: ClassInfo[]) => {
     if (user.role !== "student") return;
     if (availableClasses.length === 0) {
-      alert("当前暂无班级，请先创建班级后再调整学生班级。");
+      toast.error("当前暂无班级，请先创建班级后再调整学生班级。");
       return;
     }
     const currentClassName = user.class_names?.[0];
