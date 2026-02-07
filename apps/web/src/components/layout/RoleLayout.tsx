@@ -2,6 +2,7 @@
 
 import { AuthGuard } from "@/components/auth-guard";
 import { Sidebar } from "@/components/layout/sidebar";
+import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/navigation";
 
 interface RoleLayoutProps {
@@ -22,9 +23,16 @@ interface RoleLayoutProps {
 export function RoleLayout({ children, allowedRoles, mainOverflow = "auto" }: RoleLayoutProps) {
   return (
     <AuthGuard allowedRoles={allowedRoles}>
-      <div className="flex h-screen bg-background">
+      <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
-        <main className={`flex-1 overflow-${mainOverflow}`}>{children}</main>
+        <main
+          className={cn(
+            "flex-1 min-h-0 min-w-0",
+            mainOverflow === "hidden" ? "overflow-hidden" : "overflow-auto"
+          )}
+        >
+          {children}
+        </main>
       </div>
     </AuthGuard>
   );
