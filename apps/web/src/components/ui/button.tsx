@@ -50,6 +50,7 @@ function Button({
     loading?: boolean;
   }) {
   const Comp = asChild ? Slot : "button";
+  const content = asChild ? children : [loading ? <Loader2 key="loading" className="animate-spin" /> : null, children];
 
   return (
     <Comp
@@ -60,8 +61,7 @@ function Button({
       disabled={disabled || loading}
       {...props}
     >
-      {loading && <Loader2 className="animate-spin" />}
-      {children}
+      {content}
     </Comp>
   );
 }

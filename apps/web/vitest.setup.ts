@@ -13,7 +13,7 @@ vi.mock("next/navigation", async (importOriginal) => {
 
   return {
     ...actual,
-    useRouter: () => ({ push: vi.fn() }),
+    useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
     useSearchParams: () => new URLSearchParams(""),
   };
 });
