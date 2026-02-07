@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAuthStore } from "@/stores/auth";
 import { getDefaultRoute } from "@/lib/navigation";
+import { AuthForm } from "@/components/auth/auth-form";
 import { LazyParticleBackground } from "@/components/effects/LazyParticleBackground";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   Code2,
   Sparkles,
@@ -20,30 +24,63 @@ import {
   Star,
 } from "lucide-react";
 
+type LoginEntry = "student" | "teacher";
+
 export default function HomePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   // Use selectors to only subscribe to needed state
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
   const user = useAuthStore((s) => s.user);
+  const mustChangePassword = useAuthStore((s) => s.mustChangePassword);
   const checkAuth = useAuthStore((s) => s.checkAuth);
+  const logout = useAuthStore((s) => s.logout);
+
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [loginEntry, setLoginEntry] = useState<LoginEntry>("student");
+
+  const isStudentAuthenticated = isAuthenticated && user?.role === "student";
+  const shouldRedirectToDefaultRoute = Boolean(
+    isAuthenticated && user && user.role !== "student" && !mustChangePassword
+  );
+  const studentDisplayName = user?.display_name || user?.username || "同学";
+  const studentInitial = studentDisplayName.slice(0, 1);
+
+  const openLoginDialog = useCallback((entry: LoginEntry): void => {
+    setLoginEntry(entry);
+    setLoginDialogOpen(true);
+  }, []);
+
+  const closeLoginDialog = useCallback((): void => {
+    setLoginDialogOpen(false);
+  }, []);
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
   useEffect(() => {
-    if (isLoading) return;
+    const queryEntry = searchParams.get("login");
+    if (isLoading || isAuthenticated) return;
+    if (queryEntry !== "student" && queryEntry !== "teacher") return;
 
-    if (isAuthenticated && user) {
+    openLoginDialog(queryEntry);
+    router.replace("/", { scroll: false });
+  }, [isLoading, isAuthenticated, searchParams, openLoginDialog, router]);
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || !user) return;
+
+    if (user.role !== "student" && !mustChangePassword) {
       router.push(getDefaultRoute(user.role));
     }
-  }, [isAuthenticated, isLoading, user, router]);
+  }, [isAuthenticated, isLoading, user, mustChangePassword, router]);
 
   // Respect user's motion preferences for accessibility
   const shouldReduceMotion = useReducedMotion();
 
-  if (isLoading || (isAuthenticated && user)) {
+  if (isLoading || shouldRedirectToDefaultRoute) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary"></div>
@@ -96,18 +133,63 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-4">
-              <Link href="/login?role=student">
-                <Button size="sm">学生登录</Button>
-              </Link>
-              <Link href="/login?role=teacher" className="hidden md:block">
-                <Button variant="ghost" size="sm">
-                  教师入口
-                </Button>
-              </Link>
+              {isStudentAuthenticated ? (
+                <>
+                  <div className="hidden sm:flex flex-col text-right leading-tight">
+                    <span className="text-sm font-medium text-foreground">{studentDisplayName}</span>
+                    <span className="text-xs text-muted-foreground">学生已登录</span>
+                  </div>
+                  <Avatar className="size-9 border border-border">
+                    <AvatarFallback className="text-xs font-semibold">
+                      {studentInitial}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Button variant="ghost" size="sm" onClick={logout}>
+                    退出登录
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="sm" onClick={() => openLoginDialog("student")}>
+                    学生登录
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="hidden md:inline-flex"
+                    onClick={() => openLoginDialog("teacher")}
+                  >
+                    教师入口
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </nav>
+
+      <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
+        <DialogContent className="max-w-md border-none bg-transparent p-0 shadow-none">
+          <Card className="border-border shadow-lg">
+            <CardHeader className="text-center">
+              <div className="mb-4 flex justify-center">
+                <div className="bg-primary rounded-lg p-3">
+                  <Code2 className="h-8 w-8 text-primary-foreground" />
+                </div>
+              </div>
+              <CardTitle className="text-2xl font-bold">苏格拉底式编程助手</CardTitle>
+              <CardDescription>通过引导式对话帮助你掌握编程技能</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AuthForm
+                initialEntry={loginEntry}
+                showEntrySwitcher={false}
+                onSuccess={closeLoginDialog}
+              />
+            </CardContent>
+          </Card>
+        </DialogContent>
+      </Dialog>
 
       {/* Hero Section */}
       <motion.section
@@ -146,12 +228,23 @@ export default function HomePage() {
               </motion.p>
 
               <motion.div variants={itemVariants} className="flex flex-wrap gap-6">
-                <Link href="/login?role=student">
-                  <Button size="lg" className="text-lg px-10 py-6">
+                {isStudentAuthenticated ? (
+                  <Link href="/student/chat">
+                    <Button size="lg" className="text-lg px-10 py-6">
+                      开启探索之旅
+                      <Rocket className="w-5 h-5 ml-2" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="text-lg px-10 py-6"
+                    onClick={() => openLoginDialog("student")}
+                  >
                     开启探索之旅
                     <Rocket className="w-5 h-5 ml-2" />
                   </Button>
-                </Link>
+                )}
                 <div className="flex items-center gap-4 text-sm text-muted-foreground bg-card/50 px-6 py-3 rounded-lg border border-border">
                   <div className="flex -space-x-2">
                     {[1, 2, 3, 4].map((i) => (
