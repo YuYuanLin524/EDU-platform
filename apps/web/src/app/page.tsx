@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
@@ -9,7 +9,6 @@ import { getDefaultRoute } from "@/lib/navigation";
 import { AuthForm } from "@/components/auth/auth-form";
 import { LazyParticleBackground } from "@/components/effects/LazyParticleBackground";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -22,12 +21,12 @@ import {
   Boxes,
   ChevronRight,
   Zap,
-  Star,
 } from "lucide-react";
 
 type LoginEntry = "student" | "teacher";
+type StudentLoginIntent = "stay_home" | "go_chat";
 
-export default function HomePage() {
+function HomePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   // Use selectors to only subscribe to needed state
@@ -40,6 +39,7 @@ export default function HomePage() {
 
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [loginEntry, setLoginEntry] = useState<LoginEntry>("student");
+  const [studentLoginIntent, setStudentLoginIntent] = useState<StudentLoginIntent>("stay_home");
 
   const isStudentAuthenticated = isAuthenticated && user?.role === "student";
   const shouldRedirectToDefaultRoute = Boolean(
@@ -48,14 +48,22 @@ export default function HomePage() {
   const studentDisplayName = user?.display_name || user?.username || "同学";
   const studentInitial = studentDisplayName.slice(0, 1);
 
-  const openLoginDialog = useCallback((entry: LoginEntry): void => {
-    setLoginEntry(entry);
-    setLoginDialogOpen(true);
-  }, []);
+  const openLoginDialog = useCallback(
+    (entry: LoginEntry, intent: StudentLoginIntent = "stay_home"): void => {
+      setLoginEntry(entry);
+      setStudentLoginIntent(entry === "student" ? intent : "stay_home");
+      setLoginDialogOpen(true);
+    },
+    []
+  );
 
-  const closeLoginDialog = useCallback((): void => {
+  const handleAuthSuccess = useCallback((): void => {
     setLoginDialogOpen(false);
-  }, []);
+
+    if (loginEntry === "student" && studentLoginIntent === "go_chat") {
+      router.push("/student/chat");
+    }
+  }, [loginEntry, router, studentLoginIntent]);
 
   useEffect(() => {
     checkAuth();
@@ -66,7 +74,12 @@ export default function HomePage() {
     if (isLoading || isAuthenticated) return;
     if (queryEntry !== "student" && queryEntry !== "teacher") return;
 
-    openLoginDialog(queryEntry);
+    if (queryEntry === "student") {
+      openLoginDialog("student", "stay_home");
+    } else {
+      openLoginDialog("teacher");
+    }
+
     router.replace("/", { scroll: false });
   }, [isLoading, isAuthenticated, searchParams, openLoginDialog, router]);
 
@@ -131,20 +144,15 @@ export default function HomePage() {
                 <Code2 className="w-6 h-6 text-primary-foreground" />
               </div>
               <span className="text-xl font-bold tracking-tight text-foreground">SocraticCode</span>
-
-              <Button variant="secondary" size="sm" asChild>
-                <Link href="/toolbox">
-                  <Boxes className="size-4" />
-                  算法实验室
-                </Link>
-              </Button>
             </div>
 
             <div className="flex items-center gap-4">
               {isStudentAuthenticated ? (
                 <>
                   <div className="hidden sm:flex flex-col text-right leading-tight">
-                    <span className="text-sm font-medium text-foreground">{studentDisplayName}</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {studentDisplayName}
+                    </span>
                     <span className="text-xs text-muted-foreground">学生已登录</span>
                   </div>
                   <Avatar className="size-9 border border-border">
@@ -158,7 +166,7 @@ export default function HomePage() {
                 </>
               ) : (
                 <>
-                  <Button size="sm" onClick={() => openLoginDialog("student")}>
+                  <Button size="sm" onClick={() => openLoginDialog("student", "stay_home")}>
                     学生登录
                   </Button>
                   <Button
@@ -192,7 +200,7 @@ export default function HomePage() {
               <AuthForm
                 initialEntry={loginEntry}
                 showEntrySwitcher={false}
-                onSuccess={closeLoginDialog}
+                onSuccess={handleAuthSuccess}
               />
             </CardContent>
           </Card>
@@ -209,13 +217,6 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="text-left relative">
-              <motion.div variants={itemVariants}>
-                <Badge variant="secondary" className="mb-8 px-4 py-2">
-                  <Star className="w-4 h-4 mr-2" />
-                  AI 驱动的沉浸式编程学习
-                </Badge>
-              </motion.div>
-
               <motion.h1
                 variants={itemVariants}
                 className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight mb-8 text-foreground tracking-tight"
@@ -235,37 +236,55 @@ export default function HomePage() {
                 通过苏格拉底式问答，带你领略编程的逻辑之美。
               </motion.p>
 
-              <motion.div variants={itemVariants} className="flex flex-wrap gap-6">
-                {isStudentAuthenticated ? (
-                  <Link href="/student/chat">
-                    <Button size="lg" className="text-lg px-10 py-6">
+              <motion.div variants={itemVariants} className="flex flex-wrap items-start gap-6">
+                <div className="flex w-[220px] flex-col gap-3">
+                  {isStudentAuthenticated ? (
+                    <Link href="/student/chat" className="w-full">
+                      <Button
+                        size="lg"
+                        className="card-hover h-16 w-full justify-between px-6 text-lg"
+                      >
+                        开启探索之旅
+                        <Rocket className="ml-2 h-5 w-5" />
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button
+                      size="lg"
+                      className="card-hover h-16 w-full justify-between px-6 text-lg"
+                      onClick={() => openLoginDialog("student", "go_chat")}
+                    >
                       开启探索之旅
-                      <Rocket className="w-5 h-5 ml-2" />
+                      <Rocket className="ml-2 h-5 w-5" />
                     </Button>
-                  </Link>
-                ) : (
+                  )}
+
                   <Button
                     size="lg"
-                    className="text-lg px-10 py-6"
-                    onClick={() => openLoginDialog("student")}
+                    variant="outline"
+                    className="card-hover h-16 w-full justify-between bg-background px-6 text-lg hover:bg-background"
+                    asChild
                   >
-                    开启探索之旅
-                    <Rocket className="w-5 h-5 ml-2" />
+                    <Link href="/toolbox">
+                      算法实验室
+                      <Boxes className="ml-2 h-5 w-5" />
+                    </Link>
                   </Button>
-                )}
-                <div className="flex items-center gap-4 text-sm text-muted-foreground bg-card/50 px-6 py-3 rounded-lg border border-border">
-                  <div className="flex -space-x-2">
+                </div>
+
+                <div className="flex h-16 w-[220px] items-center justify-between rounded-lg border border-border bg-card/50 px-3 text-xs text-muted-foreground">
+                  <div className="flex -space-x-1.5">
                     {[1, 2, 3, 4].map((i) => (
                       <div
                         key={i}
-                        className="w-8 h-8 rounded-full border-2 border-background bg-muted"
+                        className="h-7 w-7 rounded-full border-2 border-background bg-muted"
                         style={{
                           backgroundImage: `url(https://api.dicebear.com/7.x/avataaars/svg?seed=${i})`,
                         }}
                       />
                     ))}
                   </div>
-                  <span className="font-medium">1000+ 同学已加入</span>
+                  <span className="font-medium">快来加入我们吧！</span>
                 </div>
               </motion.div>
             </div>
@@ -370,10 +389,27 @@ export default function HomePage() {
           </div>
           <p className="text-muted-foreground text-sm">
             Designed for the builders of tomorrow.
-            <br />© 2024 SocraticCode. All rights reserved.
+            <br />
+            由你们亲爱的郭老师开发
           </p>
         </div>
       </footer>
     </div>
+  );
+}
+
+function HomePageLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary"></div>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<HomePageLoadingFallback />}>
+      <HomePageInner />
+    </Suspense>
   );
 }

@@ -7,9 +7,14 @@ function LoginRedirectInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const role = searchParams.get("role");
-  const entry = role === "teacher" ? "teacher" : "student";
+  const entry = role === "teacher" || role === "student" ? role : null;
 
   useEffect(() => {
+    if (entry === null) {
+      router.replace("/");
+      return;
+    }
+
     router.replace(`/?login=${entry}`);
   }, [entry, router]);
 
