@@ -139,7 +139,7 @@ function SortBar({
           "w-full rounded-md transition-all duration-300",
           isSorted ? "bg-primary" : "bg-muted-foreground/45",
           isActive && "origin-bottom bg-destructive shadow-md shadow-destructive/30 animate-sort-active-breathe",
-          isManualError && "bg-amber-500 shadow-md shadow-amber-500/30"
+          isManualError && "bg-destructive shadow-md shadow-destructive/30"
         )}
         style={{ height: `${getBarHeight(item.value, minValue, maxValue)}%` }}
       />
@@ -148,7 +148,7 @@ function SortBar({
           "text-center text-xs font-medium",
           isSorted ? "text-primary" : "text-foreground/80",
           isActive && "text-destructive",
-          isManualError && "text-amber-600"
+          isManualError && "text-destructive"
         )}
       >
         {item.value}
@@ -230,7 +230,7 @@ export function SortingBars({
         </div>
         {mode === "manual" ? (
           <div className="flex items-center gap-2">
-            <span className="size-2.5 rounded-full bg-amber-500" />错误位
+            <span className="size-2.5 rounded-full bg-destructive" />错误位
           </div>
         ) : null}
       </div>

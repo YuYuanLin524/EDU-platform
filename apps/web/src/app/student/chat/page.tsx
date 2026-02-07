@@ -44,7 +44,7 @@ export default function StudentChatPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
                 在线
               </div>
             </div>

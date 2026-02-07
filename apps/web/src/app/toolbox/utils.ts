@@ -35,6 +35,28 @@ export function getSwapDelta(
   return previousIndex - currentIndex;
 }
 
+export function getVerifiedRoundSortedIndices(
+  rounds: Array<{ sortedIndices: number[] }>,
+  manualRoundIndex: number,
+  itemCount: number,
+  isFinished: boolean
+): number[] {
+  if (itemCount <= 0) {
+    return [];
+  }
+
+  if (isFinished) {
+    return Array.from({ length: itemCount }, (_, index) => index);
+  }
+
+  if (manualRoundIndex <= 0 || rounds.length === 0) {
+    return [];
+  }
+
+  const verifiedRound = rounds[Math.min(manualRoundIndex - 1, rounds.length - 1)];
+  return [...verifiedRound.sortedIndices];
+}
+
 function insertReorder(items: SortBarItem[], fromIndex: number, toIndex: number): SortBarItem[] {
   const result = [...items];
   const [moved] = result.splice(fromIndex, 1);

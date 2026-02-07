@@ -51,7 +51,7 @@ export function ParticleBackground() {
       particles.forEach((particle) => {
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "#D1D5DB";
+        ctx.fillStyle = "hsl(220 7% 56%)";
         ctx.fill();
       });
 
@@ -66,7 +66,7 @@ export function ParticleBackground() {
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(209, 213, 219, ${0.3 * (1 - distance / 120)})`;
+            ctx.strokeStyle = `hsl(220 7% 56% / ${0.32 * (1 - distance / 120)})`;
             ctx.lineWidth = 1;
             ctx.stroke();
           }

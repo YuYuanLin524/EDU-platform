@@ -13,7 +13,11 @@ import {
   type SortSnapshot,
 } from "@/lib/sorting-visualizer";
 import { SPEED_OPTIONS, DEFAULT_NUMBERS, type PlaybackSpeed } from "@/app/toolbox/constants";
-import { applyManualReorder, getSortMessage } from "@/app/toolbox/utils";
+import {
+  applyManualReorder,
+  getSortMessage,
+  getVerifiedRoundSortedIndices,
+} from "@/app/toolbox/utils";
 import {
   buildManualRounds,
   isManualSupportedAlgorithm,
@@ -113,10 +117,22 @@ export function useSortingPlayback(): SortingPlaybackState {
 
   const manualSnapshot = React.useMemo(() => {
     const hasFinished = manualSupported && currentManualRound === null;
-    const sortedIndices = hasFinished ? manualItems.map((_, index) => index) : [];
+    const sortedIndices = getVerifiedRoundSortedIndices(
+      manualRounds,
+      manualRoundIndex,
+      manualItems.length,
+      hasFinished
+    );
 
     return toPreviewSnapshot(manualItems, manualRoundHint, sortedIndices);
-  }, [currentManualRound, manualItems, manualRoundHint, manualSupported]);
+  }, [
+    currentManualRound,
+    manualItems,
+    manualRoundHint,
+    manualRoundIndex,
+    manualRounds,
+    manualSupported,
+  ]);
 
   const autoSnapshot = React.useMemo(
     () => snapshots[currentStep] ?? snapshots[snapshots.length - 1],
