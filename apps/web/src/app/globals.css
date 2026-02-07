@@ -204,7 +204,31 @@
   animation-delay: 0.4s;
 }
 
+/* Sorting visualizer: emphasize active bars */
+@keyframes sort-active-breathe {
+  0%,
+  100% {
+    transform: scaleY(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scaleY(1.04);
+    filter: brightness(1.16);
+  }
+}
+
+.animate-sort-active-breathe {
+  animation: sort-active-breathe 0.85s ease-in-out infinite;
+}
+
 /* Input focus ring */
 .input-focus-ring:focus-within {
   box-shadow: 0 0 0 2px rgba(24, 24, 27, 0.1);
+}
+
+/* Global toast position: center of viewport */
+[data-sonner-toaster][data-y-position="top"][data-x-position="center"] {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }

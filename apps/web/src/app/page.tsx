@@ -19,6 +19,7 @@ import {
   BookOpen,
   MessageSquare,
   Rocket,
+  Boxes,
   ChevronRight,
   Zap,
   Star,
@@ -130,6 +131,13 @@ export default function HomePage() {
                 <Code2 className="w-6 h-6 text-primary-foreground" />
               </div>
               <span className="text-xl font-bold tracking-tight text-foreground">SocraticCode</span>
+
+              <Button variant="secondary" size="sm" asChild>
+                <Link href="/toolbox">
+                  <Boxes className="size-4" />
+                  算法实验室
+                </Link>
+              </Button>
             </div>
 
             <div className="flex items-center gap-4">
