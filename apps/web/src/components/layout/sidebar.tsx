@@ -83,7 +83,12 @@ export function Sidebar() {
   const navItems = getNavItems();
 
   return (
-    <div className={cn("flex flex-col h-full bg-card border-r border-border", isStudentChat ? "w-96" : "w-64")}>
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-col border-r border-border bg-card",
+        isStudentChat ? "w-96" : "w-64"
+      )}
+    >
       {/* Header */}
       <div className="p-4 border-b border-border">
         <h1 className="text-lg font-semibold text-foreground">Socratic Tutor</h1>
@@ -115,7 +120,7 @@ export function Sidebar() {
       </nav>
 
       {isStudentChat && chatState ? (
-        <div className="flex-1 flex flex-col">
+        <div className="flex flex-1 min-h-0 flex-col">
           <div className="px-4 pt-4 pb-3 border-t border-border">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold text-foreground">对话列表</h2>
@@ -150,7 +155,7 @@ export function Sidebar() {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3">
             {chatState.conversationsLoading ? (
               <div className="flex items-center justify-center h-32">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
