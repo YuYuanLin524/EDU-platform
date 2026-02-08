@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
-import type { AdminUserListItem, UserStatus, ClassInfo } from "../types";
+import type { AdminUserListItem, UserStatus, ClassInfo, ResetPasswordResult } from "../types";
 
 interface UseUserEditingReturn {
   // Editing state
@@ -18,14 +18,16 @@ interface UseUserEditingReturn {
   resettingUserId: number | null;
   resetPasswordInput: string;
   setResetPasswordInput: (password: string) => void;
-  resetResult: { username: string; new_password: string } | null;
-  setResetResult: (result: { username: string; new_password: string } | null) => void;
+  resetResult: ResetPasswordResult | null;
+  setResetResult: (result: ResetPasswordResult | null) => void;
   
   // Class management state
   managingTeacherId: number | null;
+  setManagingTeacherId: (id: number | null) => void;
   teacherClassIds: number[];
   setTeacherClassIds: (ids: number[]) => void;
   managingStudentId: number | null;
+  setManagingStudentId: (id: number | null) => void;
   studentClassId: number | null;
   setStudentClassId: (id: number | null) => void;
   
@@ -48,9 +50,7 @@ export function useUserEditing(): UseUserEditingReturn {
 
   const [resettingUserId, setResettingUserId] = useState<number | null>(null);
   const [resetPasswordInput, setResetPasswordInput] = useState("");
-  const [resetResult, setResetResult] = useState<{ username: string; new_password: string } | null>(
-    null
-  );
+  const [resetResult, setResetResult] = useState<ResetPasswordResult | null>(null);
 
   const [managingTeacherId, setManagingTeacherId] = useState<number | null>(null);
   const [teacherClassIds, setTeacherClassIds] = useState<number[]>([]);
@@ -146,9 +146,11 @@ export function useUserEditing(): UseUserEditingReturn {
     resetResult,
     setResetResult,
     managingTeacherId,
+    setManagingTeacherId,
     teacherClassIds,
     setTeacherClassIds,
     managingStudentId,
+    setManagingStudentId,
     studentClassId,
     setStudentClassId,
     startEditUser,

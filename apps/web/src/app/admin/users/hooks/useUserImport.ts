@@ -1,10 +1,17 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, type UseMutationResult } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import type { UserToImport, ImportResponse, UserRole, ClassInfo } from "../types";
+import type { UserToImport, ImportResponse, ClassInfo } from "../types";
+import {
+  normalizeImportUsers,
+  parseJsonImportUsers,
+  validateUserImports,
+} from "../validation";
+
+type ImportMutation = UseMutationResult<ImportResponse, Error, UserToImport[], unknown>;
 
 interface UseUserImportReturn {
   // Import method state
@@ -41,7 +48,7 @@ interface UseUserImportReturn {
   handleDownloadResults: () => void;
   
   // Mutation
-  importMutation: ReturnType<typeof useMutation>;
+  importMutation: ImportMutation;
 }
 
 export function useUserImport(): UseUserImportReturn {
@@ -120,78 +127,41 @@ export function useUserImport(): UseUserImportReturn {
 
   const handleFormSubmit = () => {
     const validUsers = formUsers.filter((u) => u.username.trim());
-    if (validUsers.length === 0) {
-      toast.error("请至少添加一个有效用户");
+    const normalizedUsers = normalizeImportUsers(validUsers);
+    const validationError = validateUserImports(normalizedUsers);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
-    if (classes.length === 0 && validUsers.some((u) => u.role === "student")) {
+    if (classes.length === 0 && normalizedUsers.some((u) => u.role === "student")) {
       toast.error("尚未创建班级，无法创建学生账户。请先创建班级。");
       return;
     }
 
-    const studentsWithoutClass = validUsers.filter(
-      (u) => u.role === "student" && !String(u.class_name || "").trim()
-    );
-    if (studentsWithoutClass.length > 0) {
-      toast.error("学生账户必须选择班级后才能创建");
-      return;
-    }
-
-    const usersToImport = validUsers.map((u) => ({
-      ...u,
-      class_name: String(u.class_name || "").trim() || undefined,
-    }));
-
-    importMutation.mutate(usersToImport);
+    importMutation.mutate(normalizedUsers);
   };
 
   const handleJsonSubmit = () => {
-    try {
-      const users = JSON.parse(jsonInput);
-      if (!Array.isArray(users)) {
-        toast.error("JSON 格式错误：需要一个数组");
-        return;
-      }
-      const normalizedUsers: UserToImport[] = users
-        .filter((u: unknown) => typeof u === "object" && u !== null)
-        .map((u: unknown) => {
-          const obj = u as Record<string, unknown>;
-          return {
-            username: String(obj.username || "").trim(),
-            display_name: typeof obj.display_name === "string" ? obj.display_name : undefined,
-            role: obj.role as UserRole,
-            class_name: typeof obj.class_name === "string" ? obj.class_name.trim() : undefined,
-          };
-        })
-        .filter((u) => u.username);
-
-      if (normalizedUsers.length === 0) {
-        toast.error("请至少提供一个有效用户");
-        return;
-      }
-
-      const invalidRole = normalizedUsers.find((u) => u.role !== "student" && u.role !== "teacher");
-      if (invalidRole) {
-        toast.error("JSON 中存在无效角色（仅支持 student/teacher）");
-        return;
-      }
-
-      if (classes.length === 0 && normalizedUsers.some((u) => u.role === "student")) {
-        toast.error("尚未创建班级，无法导入学生账户。请先创建班级。");
-        return;
-      }
-
-      const missingClass = normalizedUsers.filter((u) => u.role === "student" && !u.class_name);
-      if (missingClass.length > 0) {
-        toast.error("JSON 导入：学生账户必须提供 class_name");
-        return;
-      }
-
-      importMutation.mutate(normalizedUsers);
-    } catch {
-      toast.error("JSON 解析失败，请检查格式");
+    const parsed = parseJsonImportUsers(jsonInput);
+    if ("error" in parsed) {
+      toast.error(parsed.error);
+      return;
     }
+
+    const normalizedUsers = normalizeImportUsers(parsed.users);
+    const validationError = validateUserImports(normalizedUsers);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    if (classes.length === 0 && normalizedUsers.some((u) => u.role === "student")) {
+      toast.error("尚未创建班级，无法导入学生账户。请先创建班级。");
+      return;
+    }
+
+    importMutation.mutate(normalizedUsers);
   };
 
   const handleDownloadTemplate = () => {

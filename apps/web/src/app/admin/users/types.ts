@@ -2,6 +2,8 @@ import type { UserRole, UserStatus, ResetPasswordResult } from "@/lib/api";
 
 // Re-export types that are used from lib/api
 export type {
+  UserRole,
+  UserStatus,
   UserToImport,
   ImportResponse,
   AdminUserListItem,

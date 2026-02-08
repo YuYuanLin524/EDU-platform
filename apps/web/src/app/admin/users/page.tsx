@@ -96,7 +96,6 @@ export default function AdminUsersPage() {
     handleDeleteUser,
     copyToClipboard,
 
-    // Query client
     queryClient,
   } = useUserManagement();
 

@@ -53,6 +53,7 @@ export function useUserManagement() {
     setPage: filters.setPage,
     pageSize: filters.pageSize,
     setPageSize: filters.setPageSize,
+    queryClient: filters.queryClient,
 
     // Data
     usersQuery: filters.usersQuery,
@@ -90,9 +91,11 @@ export function useUserManagement() {
     resetResult: editing.resetResult,
     setResetResult: editing.setResetResult,
     managingTeacherId: editing.managingTeacherId,
+    setManagingTeacherId: editing.setManagingTeacherId,
     teacherClassIds: editing.teacherClassIds,
     setTeacherClassIds: editing.setTeacherClassIds,
     managingStudentId: editing.managingStudentId,
+    setManagingStudentId: editing.setManagingStudentId,
     studentClassId: editing.studentClassId,
     setStudentClassId: editing.setStudentClassId,
 

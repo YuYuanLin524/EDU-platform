@@ -1,10 +1,24 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import axios from "axios";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import type { UserStatus } from "../types";
+import type { UserStatus, ResetPasswordResult } from "../types";
+import { validateResetPassword, validateUpdateUser } from "../validation";
+
+type UpdateUserVariables = {
+  userId: number;
+  username: string;
+  display_name: string;
+  status: UserStatus;
+};
+
+type UpdateUserResponse = Awaited<ReturnType<typeof api.updateUser>>;
+type DeleteUserResponse = Awaited<ReturnType<typeof api.deleteUser>>;
+type SetTeacherClassesResponse = Awaited<ReturnType<typeof api.setTeacherClasses>>;
+type SetStudentClassResponse = Awaited<ReturnType<typeof api.setStudentClass>>;
+type ResetPasswordVariables = { userId: number; newPassword?: string };
 
 function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
@@ -17,11 +31,11 @@ function getErrorMessage(error: unknown): string {
 }
 
 interface UseUserMutationsReturn {
-  updateUserMutation: ReturnType<typeof useMutation>;
-  resetPasswordMutation: ReturnType<typeof useMutation>;
-  deleteUserMutation: ReturnType<typeof useMutation>;
-  setTeacherClassesMutation: ReturnType<typeof useMutation>;
-  setStudentClassMutation: ReturnType<typeof useMutation>;
+  updateUserMutation: UseMutationResult<UpdateUserResponse, Error, UpdateUserVariables, unknown>;
+  resetPasswordMutation: UseMutationResult<ResetPasswordResult, Error, ResetPasswordVariables, unknown>;
+  deleteUserMutation: UseMutationResult<DeleteUserResponse, Error, number, unknown>;
+  setTeacherClassesMutation: UseMutationResult<SetTeacherClassesResponse, Error, { teacherId: number; classIds: number[] }, unknown>;
+  setStudentClassMutation: UseMutationResult<SetStudentClassResponse, Error, { studentId: number; classId: number }, unknown>;
   handleDeleteUser: (userId: number, username: string) => void;
   copyToClipboard: (text: string) => Promise<void>;
 }
@@ -32,17 +46,18 @@ export function useUserMutations(
   const queryClient = useQueryClient();
 
   const updateUserMutation = useMutation({
-    mutationFn: (params: {
-      userId: number;
-      username: string;
-      display_name: string;
-      status: UserStatus;
-    }) =>
-      api.updateUser(params.userId, {
+    mutationFn: (params: UpdateUserVariables) => {
+      const validationError = validateUpdateUser(params);
+      if (validationError) {
+        throw new Error(validationError);
+      }
+
+      return api.updateUser(params.userId, {
         username: params.username,
         display_name: params.display_name,
         status: params.status,
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
       onSuccess?.();
@@ -55,8 +70,14 @@ export function useUserMutations(
   });
 
   const resetPasswordMutation = useMutation({
-    mutationFn: (params: { userId: number; newPassword?: string }) =>
-      api.resetUserPassword(params.userId, params.newPassword),
+    mutationFn: (params: ResetPasswordVariables) => {
+      const validationError = validateResetPassword(params);
+      if (validationError) {
+        throw new Error(validationError);
+      }
+
+      return api.resetUserPassword(params.userId, params.newPassword);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
     },

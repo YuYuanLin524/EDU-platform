@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { UserRole, AdminUserListItem, ClassInfo } from "../types";
+import type { UserRole, AdminUserListItem } from "../types";
 
 interface UseUserFiltersReturn {
   roleFilter: UserRole | "all";
@@ -18,9 +18,11 @@ interface UseUserFiltersReturn {
   filteredUsers: AdminUserListItem[];
   totalUsers: number;
   totalPages: number;
+  queryClient: QueryClient;
 }
 
 export function useUserFilters(): UseUserFiltersReturn {
+  const queryClient = useQueryClient();
   const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
   const [searchText, setSearchText] = useState("");
   const [page, setPage] = useState(1);
@@ -31,7 +33,7 @@ export function useUserFilters(): UseUserFiltersReturn {
     queryFn: () => api.listUsers(roleFilter === "all" ? undefined : roleFilter, page, pageSize),
   });
 
-  const users = (usersQuery.data?.items ?? []) as AdminUserListItem[];
+  const users = useMemo(() => (usersQuery.data?.items ?? []) as AdminUserListItem[], [usersQuery.data]);
   const totalUsers = usersQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalUsers / pageSize));
 
@@ -60,5 +62,6 @@ export function useUserFilters(): UseUserFiltersReturn {
     filteredUsers,
     totalUsers,
     totalPages,
+    queryClient,
   };
 }
