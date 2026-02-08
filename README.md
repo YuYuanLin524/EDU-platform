@@ -16,6 +16,30 @@
 
 ## 快速开始
 
+## 上线前检查（Vercel + 独立 API）
+
+- 前端生产构建（本地/CI）：
+
+```bash
+cd apps/web
+npm run build
+```
+
+- 后端健康检查：
+
+```bash
+curl http://127.0.0.1:8000/healthz
+curl http://127.0.0.1:8000/readyz
+```
+
+- 生产环境变量最低要求：
+  - `JWT_SECRET` 必须替换为强随机值
+  - `CORS_ORIGINS` 必须包含 Vercel 生产域名（可逗号分隔）
+  - `NEXT_PUBLIC_API_URL` 指向生产 API 域名
+
+- 如需在测试环境跳过启动时 DB 配置同步（避免挂起）：
+  - 设置 `SKIP_STARTUP_LLM_SYNC=true`
+
 ### 一键启动（推荐）
 
 ```bash

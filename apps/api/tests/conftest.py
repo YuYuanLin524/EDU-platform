@@ -4,7 +4,6 @@ Test fixtures for API integration tests.
 Uses SQLite in-memory database for fast test execution.
 """
 
-import asyncio
 from typing import AsyncGenerator
 import pytest
 from httpx import AsyncClient, ASGITransport
@@ -14,21 +13,13 @@ from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base, get_db
 from app.main import app
+from app.config import get_settings
 from app.models import User, UserRole, UserStatus, Class, ClassStudent, ClassTeacher
 from app.auth.security import hash_password, create_access_token
 
 
 # Test database URL (SQLite in-memory)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
 
 @pytest.fixture(scope="function")
 async def test_engine():
@@ -71,6 +62,11 @@ async def test_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture(scope="function")
 async def client(test_engine) -> AsyncGenerator[AsyncClient, None]:
     """Create a test HTTP client with database dependency override."""
+    settings = get_settings()
+    settings.skip_startup_llm_sync = True
+    settings.readiness_check_redis = False
+    settings.startup_db_timeout_seconds = 0.2
+
     async_session_maker = async_sessionmaker(
         test_engine, class_=AsyncSession, expire_on_commit=False
     )
