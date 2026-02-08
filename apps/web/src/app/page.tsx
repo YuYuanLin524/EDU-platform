@@ -33,6 +33,7 @@ function HomePageInner() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
   const user = useAuthStore((s) => s.user);
+  const pendingUser = useAuthStore((s) => s.pendingUser);
   const mustChangePassword = useAuthStore((s) => s.mustChangePassword);
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const logout = useAuthStore((s) => s.logout);
@@ -41,10 +42,11 @@ function HomePageInner() {
   const [loginEntry, setLoginEntry] = useState<LoginEntry>("student");
   const [studentLoginIntent, setStudentLoginIntent] = useState<StudentLoginIntent>("stay_home");
 
-  const isStudentAuthenticated = isAuthenticated && user?.role === "student";
+  const isStudentAuthenticated = isAuthenticated && user?.role === "student" && !mustChangePassword;
   const shouldRedirectToDefaultRoute = Boolean(
     isAuthenticated && user && user.role !== "student" && !mustChangePassword
   );
+  const isForcePasswordChange = mustChangePassword;
   const studentDisplayName = user?.display_name || user?.username || "同学";
   const studentInitial = studentDisplayName.slice(0, 1);
 
@@ -64,6 +66,17 @@ function HomePageInner() {
       router.push("/student/chat");
     }
   }, [loginEntry, router, studentLoginIntent]);
+
+  const handleLoginDialogOpenChange = useCallback(
+    (nextOpen: boolean): void => {
+      if (!nextOpen && isForcePasswordChange) {
+        logout();
+      }
+
+      setLoginDialogOpen(nextOpen);
+    },
+    [isForcePasswordChange, logout]
+  );
 
   useEffect(() => {
     checkAuth();
@@ -90,6 +103,15 @@ function HomePageInner() {
       router.push(getDefaultRoute(user.role));
     }
   }, [isAuthenticated, isLoading, user, mustChangePassword, router]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (mustChangePassword && !loginDialogOpen) {
+      const forcedEntry: LoginEntry =
+        pendingUser?.role === "teacher" || pendingUser?.role === "admin" ? "teacher" : "student";
+      openLoginDialog(forcedEntry, "stay_home");
+    }
+  }, [isLoading, mustChangePassword, loginDialogOpen, pendingUser, openLoginDialog]);
 
   // Respect user's motion preferences for accessibility
   const shouldReduceMotion = useReducedMotion();
@@ -184,8 +206,11 @@ function HomePageInner() {
         </div>
       </nav>
 
-      <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
-        <DialogContent className="max-w-md border-none bg-transparent p-0 shadow-none">
+      <Dialog open={loginDialogOpen} onOpenChange={handleLoginDialogOpenChange}>
+        <DialogContent
+          className="max-w-md border-none bg-transparent p-0 shadow-none"
+          showCloseButton
+        >
           <Card className="border-border shadow-lg">
             <CardHeader className="text-center">
               <div className="mb-4 flex justify-center">

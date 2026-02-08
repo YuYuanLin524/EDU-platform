@@ -13,6 +13,11 @@ const authState = vi.hoisted(() => ({
     display_name?: string | null;
     username?: string | null;
   } | null,
+  pendingUser: null as {
+    role: "admin" | "teacher" | "student";
+    display_name?: string | null;
+    username?: string | null;
+  } | null,
   mustChangePassword: false,
   checkAuth: vi.fn(),
   logout: vi.fn(),
@@ -39,6 +44,7 @@ describe("HomePage login query behavior", () => {
     authState.isAuthenticated = false;
     authState.isLoading = false;
     authState.user = null;
+    authState.pendingUser = null;
     authState.mustChangePassword = false;
     authState.checkAuth.mockReset();
     authState.logout.mockReset();

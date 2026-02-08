@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useEffect, useMemo, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,56 @@ import { Label } from "@/components/ui/label";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Entry = "student" | "teacher";
+
+function PasswordField({
+  id,
+  label,
+  value,
+  placeholder,
+  autoComplete,
+  showPassword,
+  showPasswordAriaLabel,
+  hidePasswordAriaLabel,
+  onChange,
+  onToggle,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  placeholder: string;
+  autoComplete: string;
+  showPassword: boolean;
+  showPasswordAriaLabel: string;
+  hidePasswordAriaLabel: string;
+  onChange: (value: string) => void;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="relative">
+        <Input
+          id={id}
+          type={showPassword ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          required
+          autoComplete={autoComplete}
+          className="pr-10"
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={showPassword ? hidePasswordAriaLabel : showPasswordAriaLabel}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        >
+          {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function AuthForm({
   initialEntry = "student",
@@ -26,6 +77,7 @@ export function AuthForm({
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const mustChangePassword = useAuthStore((s) => s.mustChangePassword);
   const user = useAuthStore((s) => s.user);
+  const pendingUser = useAuthStore((s) => s.pendingUser);
   const changePassword = useAuthStore((s) => s.changePassword);
 
   const [entry, setEntry] = useState<Entry>(initialEntry);
@@ -38,17 +90,24 @@ export function AuthForm({
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     setEntry(initialEntry);
   }, [initialEntry]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
     if (mustChangePassword) {
       setShowChangePassword(true);
       return;
     }
+
+    setShowChangePassword(false);
+
+    if (!isAuthenticated) return;
     onSuccess?.();
   }, [isAuthenticated, mustChangePassword, onSuccess]);
 
@@ -105,8 +164,8 @@ export function AuthForm({
     try {
       await changePassword(oldPassword, newPassword);
       onSuccess?.();
-    } catch {
-      setError("密码修改失败，请检查原密码是否正确");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "密码修改失败，请稍后重试");
     } finally {
       setLoading(false);
     }
@@ -118,47 +177,48 @@ export function AuthForm({
         <CardHeader className="text-center">
           <CardTitle className="text-xl">首次登录请修改密码</CardTitle>
           <p className="text-sm text-muted-foreground mt-2 font-medium">
-            欢迎 {user?.display_name || user?.username}，为了账户安全，请设置新密码
+            欢迎 {pendingUser?.display_name || pendingUser?.username || user?.display_name || user?.username}
+            ，为了账户安全，请设置新密码
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleChangePassword} className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="old-password">原密码</Label>
-              <Input
-                id="old-password"
-                type="password"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                placeholder="请输入原密码"
-                required
-                autoComplete="current-password"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="new-password">新密码</Label>
-              <Input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="请输入新密码（至少6位）"
-                required
-                autoComplete="new-password"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="confirm-password">确认新密码</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="请再次输入新密码"
-                required
-                autoComplete="new-password"
-              />
-            </div>
+            <PasswordField
+              id="old-password"
+              label="原密码"
+              value={oldPassword}
+              onChange={setOldPassword}
+              placeholder="请输入原密码"
+              autoComplete="current-password"
+              showPassword={showOldPassword}
+              showPasswordAriaLabel="显示原密码"
+              hidePasswordAriaLabel="隐藏原密码"
+              onToggle={() => setShowOldPassword((prev) => !prev)}
+            />
+            <PasswordField
+              id="new-password"
+              label="新密码"
+              value={newPassword}
+              onChange={setNewPassword}
+              placeholder="请输入新密码（至少6位）"
+              autoComplete="new-password"
+              showPassword={showNewPassword}
+              showPasswordAriaLabel="显示新密码"
+              hidePasswordAriaLabel="隐藏新密码"
+              onToggle={() => setShowNewPassword((prev) => !prev)}
+            />
+            <PasswordField
+              id="confirm-password"
+              label="确认新密码"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              placeholder="请再次输入新密码"
+              autoComplete="new-password"
+              showPassword={showConfirmPassword}
+              showPasswordAriaLabel="显示确认新密码"
+              hidePasswordAriaLabel="隐藏确认新密码"
+              onToggle={() => setShowConfirmPassword((prev) => !prev)}
+            />
 
             {error && <p className="text-sm text-destructive text-center font-medium">{error}</p>}
 
@@ -212,18 +272,18 @@ export function AuthForm({
               autoComplete="username"
             />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="password">密码</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="请输入密码"
-              required
-              autoComplete="current-password"
-            />
-          </div>
+          <PasswordField
+            id="password"
+            label="密码"
+            value={password}
+            onChange={setPassword}
+            placeholder="请输入密码"
+            autoComplete="current-password"
+            showPassword={showLoginPassword}
+            showPasswordAriaLabel="显示密码"
+            hidePasswordAriaLabel="隐藏密码"
+            onToggle={() => setShowLoginPassword((prev) => !prev)}
+          />
 
           {error && <p className="text-sm text-destructive text-center font-medium">{error}</p>}
 

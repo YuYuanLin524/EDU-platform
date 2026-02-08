@@ -87,8 +87,20 @@ class TestGetMe:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["username"] == "admin"
-        assert data["role"] == "admin"
+        assert data["must_change_password"] is False
+        assert data["user"]["username"] == "admin"
+        assert data["user"]["role"] == "admin"
+
+    async def test_get_me_includes_must_change_password_true(
+        self, client: AsyncClient, new_student_user: User, new_student_token: str
+    ):
+        """Test /auth/me returns must_change_password for first-login users."""
+        response = await client.get("/auth/me", headers=auth_header(new_student_token))
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["must_change_password"] is True
+        assert data["user"]["username"] == "newstudent"
 
     async def test_get_me_no_token(self, client: AsyncClient):
         """Test getting current user info without token returns 401 (Unauthorized)."""

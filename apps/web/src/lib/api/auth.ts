@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { LoginResponse, UserInfo } from "./types";
+import type { CurrentUserResponse, LoginResponse } from "./types";
 
 const client = apiClient.getClient();
 
@@ -19,8 +19,8 @@ export const authApi = {
     });
   },
 
-  async getCurrentUser(): Promise<UserInfo> {
-    const response = await client.get<UserInfo>("/auth/me");
+  async getCurrentUser(): Promise<CurrentUserResponse> {
+    const response = await client.get<CurrentUserResponse>("/auth/me");
     return response.data;
   },
 };

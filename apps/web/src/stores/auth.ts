@@ -1,10 +1,13 @@
 "use client";
 
 import { create } from "zustand";
+import type { AxiosError } from "axios";
 import { api, UserInfo } from "@/lib/api";
+import type { ApiError } from "@/lib/api";
 
 interface AuthState {
   user: UserInfo | null;
+  pendingUser: UserInfo | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   mustChangePassword: boolean;
@@ -18,6 +21,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
+  pendingUser: null,
   isLoading: true,
   isAuthenticated: false,
   mustChangePassword: false,
@@ -27,19 +31,30 @@ export const useAuthStore = create<AuthState>((set) => ({
       const response = await api.login(username, password);
       api.setToken(response.access_token);
 
-      if (typeof window !== "undefined") {
-        localStorage.setItem("user", JSON.stringify(response.user));
+      if (response.must_change_password) {
+        set({
+          user: null,
+          pendingUser: response.user,
+          isAuthenticated: false,
+          mustChangePassword: true,
+        });
+      } else {
+        set({
+          user: response.user,
+          pendingUser: null,
+          isAuthenticated: true,
+          mustChangePassword: false,
+        });
       }
-
-      set({
-        user: response.user,
-        isAuthenticated: true,
-        mustChangePassword: response.must_change_password,
-      });
 
       return response.must_change_password;
     } catch {
-      set({ user: null, isAuthenticated: false });
+      set({
+        user: null,
+        pendingUser: null,
+        isAuthenticated: false,
+        mustChangePassword: false,
+      });
       throw new Error("登录失败，请检查学号/工号和密码");
     }
   },
@@ -48,6 +63,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     api.clearToken();
     set({
       user: null,
+      pendingUser: null,
       isAuthenticated: false,
       mustChangePassword: false,
     });
@@ -60,33 +76,67 @@ export const useAuthStore = create<AuthState>((set) => ({
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
     if (!token) {
-      set({ isLoading: false, isAuthenticated: false });
+      set({
+        user: null,
+        pendingUser: null,
+        isLoading: false,
+        isAuthenticated: false,
+        mustChangePassword: false,
+      });
       return;
     }
 
     try {
-      const user = await api.getCurrentUser();
-      set({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-      });
+      const response = await api.getCurrentUser();
+
+      if (response.must_change_password) {
+        set({
+          user: null,
+          pendingUser: response.user,
+          isAuthenticated: false,
+          mustChangePassword: true,
+          isLoading: false,
+        });
+      } else {
+        set({
+          user: response.user,
+          pendingUser: null,
+          isAuthenticated: true,
+          mustChangePassword: false,
+          isLoading: false,
+        });
+      }
     } catch {
       api.clearToken();
       set({
         user: null,
+        pendingUser: null,
         isAuthenticated: false,
+        mustChangePassword: false,
         isLoading: false,
       });
     }
   },
 
   changePassword: async (oldPassword: string, newPassword: string) => {
-    await api.changePassword(oldPassword, newPassword);
-    set({ mustChangePassword: false });
+    try {
+      await api.changePassword(oldPassword, newPassword);
+      set((state) => ({
+        user: state.pendingUser,
+        pendingUser: null,
+        isAuthenticated: true,
+        mustChangePassword: false,
+      }));
+    } catch (error) {
+      const detail = (error as AxiosError<ApiError> | undefined)?.response?.data?.detail;
+      throw new Error(detail || "密码修改失败，请稍后重试");
+    }
   },
 
   setMustChangePassword: (value: boolean) => {
-    set({ mustChangePassword: value });
+    set((state) => ({
+      mustChangePassword: value,
+      isAuthenticated: value ? false : state.isAuthenticated,
+    }));
   },
 }));

@@ -15,6 +15,11 @@ class LoginResponse(BaseModel):
     user: "UserInfo"
 
 
+class MeResponse(BaseModel):
+    must_change_password: bool
+    user: "UserInfo"
+
+
 class UserInfo(BaseModel):
     id: int
     username: str

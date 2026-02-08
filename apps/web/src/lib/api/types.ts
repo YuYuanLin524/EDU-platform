@@ -19,6 +19,11 @@ export interface LoginResponse {
   user: UserInfo;
 }
 
+export interface CurrentUserResponse {
+  must_change_password: boolean;
+  user: UserInfo;
+}
+
 export interface ConversationInfo {
   id: number;
   class_id: number;

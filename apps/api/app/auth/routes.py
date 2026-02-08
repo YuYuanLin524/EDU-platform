@@ -7,6 +7,7 @@ from app.models import User, UserStatus, AuditLog
 from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
+    MeResponse,
     UserInfo,
     ChangePasswordRequest,
 )
@@ -91,7 +92,10 @@ async def change_password(
     return {"message": "密码修改成功"}
 
 
-@router.get("/me", response_model=UserInfo)
+@router.get("/me", response_model=MeResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """获取当前用户信息"""
-    return UserInfo.model_validate(current_user)
+    return MeResponse(
+        must_change_password=current_user.must_change_password,
+        user=UserInfo.model_validate(current_user),
+    )
