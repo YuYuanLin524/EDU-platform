@@ -9,7 +9,7 @@ import { getBarHeight, getSwapDelta } from "@/app/toolbox/utils";
 
 type SortMode = "auto" | "manual";
 
-interface MotionProps {
+interface BarMotionState {
   x: number | number[];
   y: number | number[];
   scale: number | number[];
@@ -32,13 +32,13 @@ function getMotionState(
   index: number,
   snapshot: SortSnapshot,
   swapDelta: number
-): MotionProps {
+): BarMotionState {
   const isSwapHighlight = snapshot.stepType === "swap" && snapshot.swapItemIds?.includes(item.id);
   const isSelectionPickFocus = snapshot.stepType === "selection_pick" && snapshot.focusItemId === item.id;
   const isSelectionPlaceFocus = snapshot.stepType === "selection_place" && snapshot.focusItemId === item.id;
   const isInsertionLiftFocus = snapshot.stepType === "insertion_lift" && snapshot.focusItemId === item.id;
   const isInsertionPlaceFocus = snapshot.stepType === "insertion_place" && snapshot.focusItemId === item.id;
-  const isInsertionShiftStep = snapshot.stepType === "insertion_shift" && snapshot.affectedRange;
+  const isInsertionShiftStep = snapshot.stepType === "insertion_shift";
 
   const { selectionXDelta, insertionXDelta } = getSelectionDeltas(snapshot);
 
@@ -74,7 +74,7 @@ function getMotionState(
     };
   }
 
-  if (isInsertionShiftStep) {
+  if (isInsertionShiftStep && snapshot.affectedRange) {
     const [rangeStart, rangeEnd] = snapshot.affectedRange;
     if (index >= rangeStart && index <= rangeEnd) {
       return {
@@ -132,7 +132,7 @@ function SortBar({
           ease: hasTrajectory ? [0.16, 1, 0.3, 1] : "easeOut",
         },
       }}
-      animate={motionState}
+      animate={motionState as unknown as Record<string, number | number[]>}
     >
       <div
         className={cn(

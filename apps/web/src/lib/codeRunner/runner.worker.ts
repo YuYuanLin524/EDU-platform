@@ -24,6 +24,7 @@ interface PyodideLike {
 }
 
 declare const loadPyodide: (options: { indexURL: string }) => Promise<PyodideLike>;
+declare function importScripts(...urls: string[]): void;
 
 const PYODIDE_VERSION = "0.27.3";
 const PYODIDE_BASE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;

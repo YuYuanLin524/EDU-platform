@@ -107,6 +107,7 @@ export function runBubbleSort(
 ): void {
   const length = items.length;
   const settled = new Set<number>();
+  const sortedIndices = (): number[] => Array.from(settled);
 
   for (let pass = 0; pass < length - 1; pass += 1) {
     let hasSwapped = false;
@@ -114,7 +115,7 @@ export function runBubbleSort(
     for (let index = 0; index < length - pass - 1; index += 1) {
       push(`比较 ${items[index].value} 与 ${items[index + 1].value}`, {
         activeIndices: [index, index + 1],
-        sortedIndices: [...settled],
+        sortedIndices: sortedIndices(),
         stepType: "compare",
       });
 
@@ -126,7 +127,7 @@ export function runBubbleSort(
       hasSwapped = true;
       push(`交换 ${items[index + 1].value} 和 ${items[index].value}`, {
         activeIndices: [index, index + 1],
-        sortedIndices: [...settled],
+        sortedIndices: sortedIndices(),
         stepType: "swap",
         swapItemIds,
       });
@@ -134,7 +135,7 @@ export function runBubbleSort(
 
     settled.add(length - pass - 1);
     push(`第 ${pass + 1} 轮结束，末尾元素已确定`, {
-      sortedIndices: [...settled],
+      sortedIndices: sortedIndices(),
       stepType: "settled",
     });
 
@@ -156,6 +157,7 @@ export function runSelectionSort(
 ): void {
   const length = items.length;
   const settled = new Set<number>();
+  const sortedIndices = (): number[] => Array.from(settled);
 
   for (let start = 0; start < length; start += 1) {
     let minIndex = start;
@@ -163,7 +165,7 @@ export function runSelectionSort(
     for (let index = start + 1; index < length; index += 1) {
       push(`扫描${getDirectionNoun(direction)}候选：${items[minIndex].value} 与 ${items[index].value}`, {
         activeIndices: [minIndex, index],
-        sortedIndices: [...settled],
+        sortedIndices: sortedIndices(),
         stepType: "compare",
       });
 
@@ -171,7 +173,7 @@ export function runSelectionSort(
         minIndex = index;
         push(`更新${getDirectionNoun(direction)}为 ${items[minIndex].value}`, {
           activeIndices: [minIndex],
-          sortedIndices: [...settled],
+          sortedIndices: sortedIndices(),
           stepType: "compare",
         });
       }
@@ -181,7 +183,7 @@ export function runSelectionSort(
       const minItemId = items[minIndex].id;
       push(`锁定${getDirectionNoun(direction)} ${items[minIndex].value}，准备放入有序区`, {
         activeIndices: [minIndex],
-        sortedIndices: [...settled],
+        sortedIndices: sortedIndices(),
         stepType: "selection_pick",
         focusItemId: minItemId,
         fromIndex: minIndex,
@@ -191,7 +193,7 @@ export function runSelectionSort(
       const swapItemIds = swapItems(items, start, minIndex);
       push(`把${getDirectionNoun(direction)}放到索引 ${start + 1}`, {
         activeIndices: [start, minIndex],
-        sortedIndices: [...settled],
+        sortedIndices: sortedIndices(),
         stepType: "selection_place",
         swapItemIds,
         focusItemId: minItemId,
@@ -201,7 +203,7 @@ export function runSelectionSort(
     } else {
       push(`当前位置已是${getDirectionNoun(direction)}，无需移动`, {
         activeIndices: [start],
-        sortedIndices: [...settled],
+        sortedIndices: sortedIndices(),
         stepType: "selection_pick",
         focusItemId: items[start].id,
         fromIndex: start,
@@ -211,7 +213,7 @@ export function runSelectionSort(
 
     settled.add(start);
     push(`前 ${start + 1} 个元素已就位`, {
-      sortedIndices: [...settled],
+      sortedIndices: sortedIndices(),
       stepType: "settled",
     });
   }
@@ -285,7 +287,7 @@ export function runQuickSort(
 ): void {
   const settled = new Set<number>();
 
-  const sortedIndices = (): number[] => [...settled].sort((left, right) => left - right);
+  const sortedIndices = (): number[] => Array.from(settled).sort((left, right) => left - right);
 
   const partition = (left: number, right: number): number => {
     const pivot = items[right].value;
