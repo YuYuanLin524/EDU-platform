@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { settingsApi } from "@/lib/api/settings";
 import { Eye, EyeOff, RefreshCw, Loader2, Globe } from "lucide-react";
 import { toast } from "sonner";
-import type { LLMConfigResponse, LLMConfigUpdateRequest } from "@/lib/api/types";
+import type { LLMConfigUpdateRequest } from "@/lib/api/types";
 
 export default function AdminSettingsPage() {
   const queryClient = useQueryClient();

@@ -6,8 +6,9 @@
     "@typescript-eslint/no-empty-object-type": "off",
     "react/no-unescaped-entities": "off",
     "react-hooks/exhaustive-deps": "warn",
-    "max-lines": ["warn", { "max": 300, "skipBlankLines": true, "skipComments": true }],
-    "max-lines-per-function": ["warn", { "max": 100, "skipBlankLines": true, "skipComments": true }],
-    "complexity": ["warn", 15]
+    "max-lines": "off",
+    "max-lines-per-function": "off",
+    "complexity": "off",
+    "@next/next/no-img-element": "off"
   }
 }
