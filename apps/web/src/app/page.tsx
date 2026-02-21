@@ -26,9 +26,40 @@ import {
 type LoginEntry = "student" | "teacher";
 type StudentLoginIntent = "stay_home" | "go_chat";
 
-function HomePageInner() {
+/**
+ * Tiny component that reads `?login=student|teacher` from the URL and
+ * opens the login dialog accordingly. Isolated here so that `useSearchParams()`
+ * only forces its own `<Suspense>` boundary instead of blocking the whole page.
+ */
+function SearchParamsHandler({
+  openLoginDialog,
+}: {
+  openLoginDialog: (entry: LoginEntry, intent?: StudentLoginIntent) => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  useEffect(() => {
+    const queryEntry = searchParams.get("login");
+    if (isLoading || isAuthenticated) return;
+    if (queryEntry !== "student" && queryEntry !== "teacher") return;
+
+    if (queryEntry === "student") {
+      openLoginDialog("student", "stay_home");
+    } else {
+      openLoginDialog("teacher");
+    }
+
+    router.replace("/", { scroll: false });
+  }, [isLoading, isAuthenticated, searchParams, openLoginDialog, router]);
+
+  return null;
+}
+
+function HomePageInner() {
+  const router = useRouter();
   // Use selectors to only subscribe to needed state
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
@@ -83,20 +114,6 @@ function HomePageInner() {
   }, [checkAuth]);
 
   useEffect(() => {
-    const queryEntry = searchParams.get("login");
-    if (isLoading || isAuthenticated) return;
-    if (queryEntry !== "student" && queryEntry !== "teacher") return;
-
-    if (queryEntry === "student") {
-      openLoginDialog("student", "stay_home");
-    } else {
-      openLoginDialog("teacher");
-    }
-
-    router.replace("/", { scroll: false });
-  }, [isLoading, isAuthenticated, searchParams, openLoginDialog, router]);
-
-  useEffect(() => {
     if (isLoading || !isAuthenticated || !user) return;
 
     if (user.role !== "student" && !mustChangePassword) {
@@ -116,7 +133,10 @@ function HomePageInner() {
   // Respect user's motion preferences for accessibility
   const shouldReduceMotion = useReducedMotion();
 
-  if (isLoading || shouldRedirectToDefaultRoute) {
+  // Only block rendering when the user is authenticated and about to be redirected
+  // away from this page. For all other cases (including initial auth check),
+  // render the landing page immediately so there is no loading spinner flash.
+  if (shouldRedirectToDefaultRoute) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary"></div>
@@ -205,6 +225,11 @@ function HomePageInner() {
           </div>
         </div>
       </nav>
+
+      {/* Handle ?login=student|teacher query param without blocking the page */}
+      <Suspense fallback={null}>
+        <SearchParamsHandler openLoginDialog={openLoginDialog} />
+      </Suspense>
 
       <Dialog open={loginDialogOpen} onOpenChange={handleLoginDialogOpenChange}>
         <DialogContent
@@ -423,18 +448,6 @@ function HomePageInner() {
   );
 }
 
-function HomePageLoadingFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary"></div>
-    </div>
-  );
-}
-
 export default function HomePage() {
-  return (
-    <Suspense fallback={<HomePageLoadingFallback />}>
-      <HomePageInner />
-    </Suspense>
-  );
+  return <HomePageInner />;
 }

@@ -19,8 +19,10 @@ export const authApi = {
     });
   },
 
-  async getCurrentUser(): Promise<CurrentUserResponse> {
-    const response = await client.get<CurrentUserResponse>("/auth/me");
+  async getCurrentUser(options?: { signal?: AbortSignal }): Promise<CurrentUserResponse> {
+    const response = await client.get<CurrentUserResponse>("/auth/me", {
+      signal: options?.signal,
+    });
     return response.data;
   },
 };

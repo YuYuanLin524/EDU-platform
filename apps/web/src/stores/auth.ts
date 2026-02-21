@@ -86,8 +86,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       return;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     try {
-      const response = await api.getCurrentUser();
+      const response = await api.getCurrentUser({ signal: controller.signal });
 
       if (response.must_change_password) {
         set({
@@ -106,15 +109,25 @@ export const useAuthStore = create<AuthState>((set) => ({
           isLoading: false,
         });
       }
-    } catch {
-      api.clearToken();
-      set({
-        user: null,
-        pendingUser: null,
-        isAuthenticated: false,
-        mustChangePassword: false,
-        isLoading: false,
-      });
+    } catch (error) {
+      const status = (error as AxiosError)?.response?.status;
+
+      if (status === 401) {
+        // Token genuinely invalid/expired — clear it
+        api.clearToken();
+        set({
+          user: null,
+          pendingUser: null,
+          isAuthenticated: false,
+          mustChangePassword: false,
+          isLoading: false,
+        });
+      } else {
+        // Timeout / network error — keep the token, just stop loading
+        set({ isLoading: false });
+      }
+    } finally {
+      clearTimeout(timeoutId);
     }
   },
 
